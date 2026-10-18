@@ -173,6 +173,11 @@ body.stage .top,body.stage .lib,body.stage .tools,body.stage .back,body.stage .h
 body.stage .app{grid-template-columns:minmax(0,1fr)}
 body.stage .dock{left:20px}
 body.stage .exit-stage{display:block}
+/* No palco os botões somem; um toque na tela traz de volta por alguns segundos */
+body.stage .dock,body.stage .exit-stage{opacity:0;pointer-events:none;transform:translateY(14px);transition:opacity .25s,transform .25s}
+body.stage .exit-stage{transform:translateY(-14px)}
+body.stage.ctl .dock,body.stage.ctl .exit-stage{opacity:1;pointer-events:auto;transform:none}
+body.stage.ctl .exit-stage{opacity:.9}
 body.stage .reader{padding-top:46px}
 body.stage .inner{max-width:1100px}
 body.stage .hh,body.stage .sheet{background:transparent;border-color:transparent;box-shadow:none}
@@ -645,7 +650,7 @@ function setPlayBtn(){var b=$("#bPlay");b.textContent=playing?"❚❚ Pausar":"�
 function setVel(d){var h=byId(cur);if(!h)return;h.vel=Math.max(1,Math.min(20,(h.vel||5)+d));save();renderTools()}
 $("#bPlay").onclick=toggleScroll;
 $("#vUp").onclick=function(){setVel(1)};$("#vDown").onclick=function(){setVel(-1)};
-$("#sheet").addEventListener("click",function(){if(playing)stopScroll()});
+$("#sheet").addEventListener("click",function(){if(playing&&!document.body.classList.contains("stage"))stopScroll()});
 function updProg(){var m=maxScroll();$("#prog").style.width=(m?Math.min(100,window.scrollY/m*100):0)+"%"}
 window.addEventListener("scroll",updProg,{passive:true});
 window.addEventListener("resize",updProg);
@@ -661,11 +666,22 @@ document.addEventListener("visibilitychange",function(){if(document.visibilitySt
 
 /* Modo palco */
 function palco(on){document.body.classList.toggle("stage",on);
+  if(on){mostraControles();if(!avisouPalco){avisouPalco=true;toast("Toque na tela para mostrar os botões")}}else escondeControles();
   try{if(on&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(function(){});
       if(!on&&document.fullscreenElement)document.exitFullscreen().catch(function(){})}catch(e){}
   updProg()}
 $("#bPalco").onclick=function(){palco(true)};$("#bSairPalco").onclick=function(){palco(false)};
-document.addEventListener("fullscreenchange",function(){if(!document.fullscreenElement)document.body.classList.remove("stage")});
+document.addEventListener("fullscreenchange",function(){if(!document.fullscreenElement){document.body.classList.remove("stage");escondeControles()}});
+/* No palco: toque na tela mostra ou esconde os botões; eles somem sozinhos depois de alguns segundos */
+var ocultaT=null,avisouPalco=false;
+function mostraControles(){document.body.classList.add("ctl");clearTimeout(ocultaT);ocultaT=setTimeout(function(){document.body.classList.remove("ctl")},3500)}
+function escondeControles(){clearTimeout(ocultaT);document.body.classList.remove("ctl")}
+document.addEventListener("click",function(e){
+  if(!document.body.classList.contains("stage")||e.target.closest("#bPalco"))return;
+  if(e.target.closest(".dock,.exit-stage,.toast")){mostraControles();return}
+  if(document.body.classList.contains("ctl"))escondeControles();else mostraControles()});
+document.addEventListener("pointermove",function(e){if(e.pointerType==="mouse"&&document.body.classList.contains("stage"))mostraControles()});
+document.addEventListener("keydown",function(){if(document.body.classList.contains("stage"))mostraControles()});
 
 /* Teclado */
 document.addEventListener("keydown",function(e){
