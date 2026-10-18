@@ -1016,7 +1016,13 @@ load();
 if(db.cfg.temaV!==2){db.cfg.tema="claro";db.cfg.temaV=2;persistir()}
 aplicaTema();renderList();iniciarNuvem();
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
-if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})}
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
+  /* Quando uma versão nova do app assume, recarrega uma vez para mostrar a novidade (só se nenhuma janela estiver aberta) */
+  var tinhaSW=!!navigator.serviceWorker.controller,recarregou=false;
+  navigator.serviceWorker.addEventListener("controllerchange",function(){
+    if(!tinhaSW||recarregou||document.querySelector(".ov:not([hidden])"))return;recarregou=true;location.reload()});
+  window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").then(function(r){
+    document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")r.update().catch(function(){})})}).catch(function(){})})}
 var ult=null;try{ult=localStorage.getItem(KEY+".ultimo")}catch(e){}
 cur=(ult&&byId(ult))?ult:(sortedHinos()[0]||{}).id||null;
 renderReader();renderList();
