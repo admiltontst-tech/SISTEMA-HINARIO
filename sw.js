@@ -1,6 +1,6 @@
 /* Hinário — service worker: guarda o app no aparelho para funcionar sem internet.
    Ao publicar uma nova versão, aumente o número abaixo. */
-const VERSAO = "hinario-v6";
+const VERSAO = "hinario-v7";
 const ARQUIVOS = [
   "/", "/index.html", "/manifest.webmanifest",
   "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png",

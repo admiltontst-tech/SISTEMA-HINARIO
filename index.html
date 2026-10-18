@@ -465,7 +465,7 @@ var EXEMPLOS=[
 "{c: 1ª estrofe}\n[C]Ao teu al[F]tar eu [C]venho, ó [G]Deus,\n[Am]trago o que [F]sou, nada [G]mais;\n[C]toma meus [F]dias, [C]planos [Am]meus,\n[F]faze-me [G]teu, fiel e [C]em paz.\n\n{c: Coro}\n[F]Tudo en[G]trego, [Em]tudo é [Am]teu,\n[F]minha [C/E]vida, [Dm]meu can[G7]tar;\n[F]santo [G]fogo [Em]vem do [Am]céu,\n[Dm]queima em [G]mim no teu al[C]tar."}
 ];
 
-var db={hinos:[],culto:[],cultoAt:0,cfg:{fonte:window.innerWidth<600?19:23,cifras:true,tema:"auto"},meta:null};
+var db={hinos:[],culto:[],cultoAt:0,cfg:{fonte:window.innerWidth<600?19:23,cifras:true,tema:"claro"},meta:null};
 function metaPadrao(){return {visto:{},pend:{},apagados:{},ultimoPull:null,ultimoSync:null}}
 /* Campos do hino que sincronizam entre aparelhos */
 var CAMPOS=["num","titulo","autor","tom","categoria","letra","vel","fav","transp"];
@@ -1011,9 +1011,18 @@ var tt=null;function toast(m,acao,fn,ms){var el=$(".toast");if(!el){el=document.
 if(/iPhone|iPad|iPod/.test(navigator.userAgent)){var ds=$("#dicaShare");if(ds)ds.innerHTML="Toque e segure na cifra, arraste até o fim da letra e toque em <b>Copiar</b>."}
 
 /* ---------- Início ---------- */
-load();aplicaTema();renderList();iniciarNuvem();
+load();
+/* Tema claro por padrão: quem estava no automático passa para o claro uma vez; o botão de tema continua alternando */
+if(db.cfg.temaV!==2){db.cfg.tema="claro";db.cfg.temaV=2;persistir()}
+aplicaTema();renderList();iniciarNuvem();
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
-if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})}
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
+  /* Quando uma versão nova do app assume, recarrega uma vez para mostrar a novidade (só se nenhuma janela estiver aberta) */
+  var tinhaSW=!!navigator.serviceWorker.controller,recarregou=false;
+  navigator.serviceWorker.addEventListener("controllerchange",function(){
+    if(!tinhaSW||recarregou||document.querySelector(".ov:not([hidden])"))return;recarregou=true;location.reload()});
+  window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").then(function(r){
+    document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")r.update().catch(function(){})})}).catch(function(){})})}
 var ult=null;try{ult=localStorage.getItem(KEY+".ultimo")}catch(e){}
 cur=(ult&&byId(ult))?ult:(sortedHinos()[0]||{}).id||null;
 renderReader();renderList();
