@@ -27,12 +27,9 @@ sincronização entre computador e celular. Funciona sem internet depois de inst
 5. Abra `config.js` no VS Code e cole os dois valores no lugar de `COLE_AQUI_...`. Salve.
 
 ## 2. Publicar na Vercel
-Pelo terminal do VS Code, dentro desta pasta:
-
-    npx vercel --prod
-
-Ou pelo GitHub: envie todos os arquivos para um repositório e importe na Vercel
-(Add New… > Project > Framework Preset: **Other** > Deploy).
+O projeto da Vercel está ligado a este repositório do GitHub: cada mudança que entra
+na branch `main` (por exemplo, o merge de um PR) publica o site sozinha, em um ou dois minutos.
+Não é preciso enviar a pasta à mão.
 
 ## 3. Entrar nos aparelhos
 1. No computador, abra o app, toque em **Entrar** (no topo) > digite e-mail e uma senha > **Criar conta**.
@@ -74,5 +71,6 @@ A exclusão também vale para os outros aparelhos.
 - O **Backup** continua disponível e vale como cópia extra.
 
 ## Publicar uma melhoria
-Altere os arquivos, aumente `VERSAO` no `sw.js` (ex.: `hinario-v5`) e publique de novo.
+Altere os arquivos, aumente `VERSAO` no `sw.js` (ex.: `hinario-v7`) e faça o merge na `main`;
+a Vercel publica sozinha.
 O app atualiza na próxima vez que abrir com internet.
