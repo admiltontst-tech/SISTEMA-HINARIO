@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f3d33">
+<meta name="description" content="Hinário pessoal com cifras, transposição e rolagem automática. Funciona offline.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hinário">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Hinário da Igreja</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: biblioteca fixa à esquerda (desktop) + partitura de leitura à direita, barra de rolagem automática no rodapé */
+:root{
+  --paper:#f5f7f3; --surface:#ffffff; --ink:#1c2420; --muted:#5d6a63; --line:#dbe1da;
+  --cover:#1f3d33; --cover-ink:#eef3ee; --brass:#9a6612; --brass-soft:#f3e7cf; --danger:#a3312b;
+  --f-lyric:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --f-ui:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --f-chord:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --libw:330px; --hh:60px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#101513; --surface:#161d1a; --ink:#e6ece8; --muted:#93a199; --line:#28322d;
+  --cover:#17241f; --cover-ink:#e6ece8; --brass:#e4b25c; --brass-soft:#33291a; --danger:#e57b72; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#101513; --surface:#161d1a; --ink:#e6ece8; --muted:#93a199; --line:#28322d;
+  --cover:#17241f; --cover-ink:#e6ece8; --brass:#e4b25c; --brass-soft:#33291a; --danger:#e57b72; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.4}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--cover)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+/* Cabeçalho */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--cover);color:var(--cover-ink);
+  min-height:var(--hh);display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:baseline;gap:8px;font-family:var(--f-lyric);font-size:1.35rem;font-weight:600;letter-spacing:.01em;white-space:nowrap}
+.brand small{font-family:var(--f-ui);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;opacity:.7;font-weight:500}
+.search{flex:1 1 220px;min-width:0;display:flex}
+.search input{width:100%;border:1px solid transparent;border-radius:8px;padding:9px 12px;background:rgba(255,255,255,.12);color:var(--cover-ink)}
+.search input::placeholder{color:var(--cover-ink);opacity:.6}
+.search input:focus{background:rgba(255,255,255,.2);outline:none;border-color:rgba(255,255,255,.35)}
+.top-actions{display:flex;gap:6px}
+.tbtn{border:1px solid rgba(255,255,255,.25);background:transparent;color:var(--cover-ink);border-radius:8px;padding:8px 12px;font-size:.85rem;white-space:nowrap}
+.tbtn:hover{background:rgba(255,255,255,.1)}
+.nuvem{display:inline-flex;align-items:center;gap:7px}
+.nuvem .dot{width:8px;height:8px;border-radius:50%;background:#9aa7a0;flex:0 0 auto}
+.nuvem[data-st="ok"] .dot{background:#6fcf8f}
+.nuvem[data-st="sync"] .dot{background:var(--brass);animation:pulsa 1s infinite alternate}
+.nuvem[data-st="offline"] .dot{background:#c9b27a}
+.nuvem[data-st="erro"] .dot{background:#e57b72}
+@keyframes pulsa{from{opacity:.35}to{opacity:1}}
+.link{border:0;background:transparent;color:var(--muted);text-decoration:underline;padding:10px 0 0;font-size:.86rem}
+.nv-senha{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.nv-senha h3{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.nv-senha input{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--paper)}
+.nv-senha.destaque{background:var(--brass-soft);border-radius:10px;padding:14px;border-top:0}
+.nv-msg{font-size:.86rem;min-height:1.2em;margin-top:10px;color:var(--muted)}
+.nv-msg.err{color:var(--danger)}
+.nv-info{display:grid;gap:6px;font-size:.92rem;background:var(--paper);border-radius:10px;padding:14px}
+.nv-info b{font-weight:600}
+.tbtn.primary{background:var(--brass);border-color:var(--brass);color:#1b1306;font-weight:600}
+
+/* Grade principal */
+.app{display:grid;grid-template-columns:var(--libw) minmax(0,1fr);min-height:calc(100vh - var(--hh))}
+.lib{position:sticky;top:calc(var(--hh) + env(safe-area-inset-top,0px));height:calc(100vh - var(--hh) - env(safe-area-inset-top,0px));
+  overflow:auto;border-right:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column}
+.tabs{display:flex;gap:4px;padding:12px 14px 8px;position:sticky;top:0;background:var(--surface);z-index:2;border-bottom:1px solid var(--line)}
+.tab{flex:1;border:0;background:transparent;padding:8px 6px;border-radius:7px;color:var(--muted);font-size:.85rem;font-weight:600}
+.tab[aria-selected="true"]{background:var(--brass-soft);color:var(--ink)}
+.tab .cnt{font-variant-numeric:tabular-nums;font-weight:500;opacity:.7;margin-left:3px}
+.pasta{padding:8px 14px 4px}
+.pasta select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--paper);font-size:.88rem}
+.list{list-style:none;margin:0;padding:6px 8px 90px}
+.item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:transparent;border-radius:8px;padding:9px 8px}
+.item:hover{background:var(--paper)}
+.item.on{background:var(--brass-soft)}
+.item .n{flex:0 0 3ch;text-align:right;font-family:var(--f-lyric);font-size:1.15rem;color:var(--brass);font-weight:600;font-variant-numeric:tabular-nums}
+.item .t{flex:1;min-width:0}
+.item .t b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .t small{color:var(--muted);font-size:.78rem}
+.item .st{color:var(--brass);font-size:.9rem}
+.li-row{display:flex;align-items:center;gap:2px}
+.li-row .item{flex:1;min-width:0}
+.mini{border:0;background:transparent;color:var(--muted);width:30px;height:30px;border-radius:6px;font-size:.9rem}
+.mini:hover{background:var(--paper);color:var(--ink)}
+.empty{padding:28px 18px;color:var(--muted);text-align:center;font-size:.9rem}
+
+/* Leitor */
+.reader{min-width:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 50vh}
+.inner{max-width:860px;margin:0 auto}
+.back{display:none;border:0;background:transparent;color:var(--muted);padding:0 0 12px;font-size:.9rem}
+.hh{display:flex;align-items:flex-start;gap:18px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.hnum{font-family:var(--f-lyric);font-size:3.2rem;line-height:.9;color:var(--brass);font-weight:600;font-variant-numeric:tabular-nums}
+.hnum small{display:block;font-family:var(--f-ui);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:6px}
+.htitle{flex:1;min-width:0}
+.htitle h1{font-family:var(--f-lyric);font-weight:600;font-size:clamp(1.6rem,3.4vw,2.3rem);line-height:1.1;margin:0 0 6px;text-wrap:balance}
+.meta{color:var(--muted);font-size:.88rem;display:flex;gap:6px 14px;flex-wrap:wrap}
+.tools{display:flex;flex-wrap:wrap;gap:8px;padding:14px 0 6px}
+.grp{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;background:var(--surface);overflow:hidden}
+.grp button{border:0;background:transparent;padding:8px 11px;font-size:.85rem;min-width:38px}
+.grp button:hover{background:var(--paper)}
+.grp .val{gap:4px;padding:0 10px;font-size:.85rem;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;border-inline:1px solid var(--line);align-self:stretch;display:flex;align-items:center}
+.grp button[aria-pressed="true"]{background:var(--brass-soft);font-weight:600}
+.keyval b{color:var(--brass)}
+
+/* Partitura */
+.sheet{font-family:var(--f-lyric);font-size:var(--fs,22px);line-height:1.25;padding-top:18px}
+.sec{font-family:var(--f-ui);font-size:.62em;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--muted);margin:1.3em 0 .4em;display:flex;align-items:center;gap:10px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.ln{margin:0 0 .35em}
+.sg{display:inline-block;vertical-align:bottom;white-space:pre-wrap;max-width:100%}
+.c{display:block;font-family:var(--f-chord);font-weight:700;color:var(--brass);font-size:.78em;line-height:1.25;padding-right:.45em;white-space:pre;min-height:1.25em}
+.l{display:block}
+.chordline .sg{margin-right:.6em}
+.chordline .l{display:none}
+.nochords .c{display:none}
+.gap{height:.7em}
+
+/* Dock de rolagem */
+.dock{position:fixed;z-index:15;left:var(--libw);right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  padding-block:10px calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.prog{position:absolute;left:0;top:-1px;height:3px;background:var(--brass);width:0}
+.play{border:1px solid var(--line);background:var(--cover);color:var(--cover-ink);border-radius:999px;padding:11px 22px;font-weight:700;min-width:130px}
+.play.on{background:var(--brass);color:#1b1306}
+.nav{border:1px solid var(--line);background:transparent;border-radius:9px;padding:9px 12px;font-size:.85rem}
+.nav:disabled{opacity:.35;cursor:default}
+.hint{font-size:.75rem;color:var(--muted);width:100%;text-align:center}
+
+/* Modo palco */
+.exit-stage{display:none;position:fixed;z-index:25;top:calc(10px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px));
+  border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 12px;font-size:.85rem;opacity:.75}
+body.stage .top,body.stage .lib,body.stage .tools,body.stage .back,body.stage .hint{display:none}
+body.stage .app{grid-template-columns:minmax(0,1fr)}
+body.stage .dock{left:0}
+body.stage .exit-stage{display:block}
+body.stage .reader{padding-top:46px}
+body.stage .inner{max-width:1100px}
+body.stage::before{background:var(--paper)}
+
+/* Janelas */
+.ov{position:fixed;inset:0;z-index:40;background:rgba(10,16,13,.55);display:flex;align-items:flex-start;justify-content:center;overflow:auto;
+  padding-block:calc(24px + env(safe-area-inset-top,0px)) 24px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+.box{background:var(--surface);border-radius:14px;width:100%;max-width:1100px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.box.sm{max-width:620px}
+.box h2{font-family:var(--f-lyric);font-weight:600;margin:0 0 4px;font-size:1.5rem}
+.box p.sub{margin:0 0 16px;color:var(--muted);font-size:.88rem}
+.ed{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.fields{display:grid;grid-template-columns:90px minmax(0,1fr);gap:10px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f.wide{grid-column:1/-1}
+.f label{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.f input,.f textarea,.f select{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--paper);width:100%}
+.f textarea{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88rem;min-height:340px;resize:vertical;line-height:1.5}
+.help{font-size:.8rem;color:var(--muted);background:var(--paper);border-radius:8px;padding:10px 12px;line-height:1.5}
+.help code{background:var(--brass-soft);padding:1px 5px;border-radius:4px;font-size:.85em}
+.pv{border:1px solid var(--line);border-radius:10px;padding:6px 16px 16px;max-height:600px;overflow:auto;background:var(--paper)}
+.pv .sheet{--fs:18px}
+.acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}
+.btn{border:1px solid var(--line);background:transparent;border-radius:9px;padding:10px 16px;font-weight:600}
+.btn.pri{background:var(--cover);color:var(--cover-ink);border-color:var(--cover)}
+.btn.dng{color:var(--danger);border-color:var(--danger);margin-right:auto}
+.btn.dng.arm{background:var(--danger);color:#fff}
+.bk-area{width:100%;min-height:150px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--paper);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem}
+.bk-sec{margin-top:18px}
+.bk-sec h3{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.passos{margin:14px 0;padding-left:20px;color:var(--muted);font-size:.86rem;display:grid;gap:4px}
+.passos b{color:var(--ink)}
+a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center;white-space:nowrap}
+.grp button.del{color:var(--danger)}
+.grp button.del.arm{background:var(--danger);color:#fff;font-weight:600}
+.toast button{border:0;background:transparent;color:var(--brass);font-weight:700;padding:2px 4px}
+.toast{display:flex;align-items:center;gap:14px;position:fixed;z-index:50;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);
+  padding:10px 16px;border-radius:9px;font-size:.88rem;max-width:calc(100% - 32px)}
+
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .lib{position:static;height:auto;border-right:0;overflow:visible}
+  .reader{display:none;padding-top:16px}
+  .dock{left:0;display:none}
+  body.has-hymn .lib{display:none}
+  body.has-hymn .reader{display:block}
+  body.has-hymn .dock{display:flex}
+  .back{display:inline-block}
+  .top{position:relative;top:0}
+  body.has-hymn .top-actions{display:none}
+  .hnum{font-size:2.4rem}
+  .ed{grid-template-columns:minmax(0,1fr)}
+  .play{min-width:110px;padding:11px 16px}
+  .hint{display:none}
+}
+@media (min-width:861px){ body:not(.has-hymn) .dock{display:none} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="brand">Hinário <small>meu repertório</small></div>
+  <div class="search"><input id="q" type="search" placeholder="Buscar por número, título ou trecho da letra" autocomplete="off" aria-label="Buscar hino"></div>
+  <div class="top-actions">
+    <button class="tbtn primary" id="bImportar">⤓ Importar cifra</button>
+    <button class="tbtn" id="bNovo">+ Novo</button>
+    <button class="tbtn nuvem" id="bNuvem" data-st="off"><span class="dot"></span><span id="nvTxt">Entrar</span></button>
+    <button class="tbtn" id="bBackup">Backup</button>
+    <button class="tbtn" id="bTema" title="Alternar tema">Tema: auto</button>
+  </div>
+</header>
+
+<main class="app">
+  <aside class="lib" aria-label="Lista de hinos">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="todos" aria-selected="true">Todos<span class="cnt" id="cTodos"></span></button>
+      <button class="tab" role="tab" data-tab="fav" aria-selected="false">Favoritos<span class="cnt" id="cFav"></span></button>
+      <button class="tab" role="tab" data-tab="culto" aria-selected="false">Culto<span class="cnt" id="cCulto"></span></button>
+    </div>
+    <div class="pasta"><select id="fPasta" aria-label="Filtrar por pasta"></select></div>
+    <ul class="list" id="list"></ul>
+  </aside>
+
+  <section class="reader" id="reader" aria-live="polite">
+    <div class="inner">
+      <button class="back" id="bVoltar">← Lista de hinos</button>
+      <div class="hh">
+        <div class="hnum"><small>Hino</small><span id="hNum">—</span></div>
+        <div class="htitle"><h1 id="hTit">Selecione um hino</h1><div class="meta" id="hMeta"></div></div>
+      </div>
+      <div class="tools" id="tools">
+        <div class="grp" title="Transpor tom">
+          <button id="tDown" aria-label="Descer meio tom">♭ −½</button>
+          <span class="val keyval" id="tVal">Tom <b>—</b></span>
+          <button id="tUp" aria-label="Subir meio tom">♯ +½</button>
+        </div>
+        <div class="grp" title="Tamanho da letra">
+          <button id="fDown" aria-label="Diminuir letra">A−</button>
+          <span class="val" id="fVal">22</span>
+          <button id="fUp" aria-label="Aumentar letra">A+</button>
+        </div>
+        <div class="grp"><button id="bCifras" aria-pressed="true">Cifras</button></div>
+        <div class="grp"><button id="bFav" aria-pressed="false">☆ Favorito</button><button id="bCulto" aria-pressed="false">+ Culto</button></div>
+        <div class="grp"><button id="bEditar">Editar</button><button id="bPalco">Modo palco</button></div>
+        <div class="grp"><button id="bExcluir" class="del">Excluir</button></div>
+      </div>
+      <div class="sheet" id="sheet"></div>
+    </div>
+  </section>
+</main>
+
+<div class="dock" id="dock">
+  <div class="prog" id="prog"></div>
+  <button class="nav" id="bPrev">◀ Anterior</button>
+  <div class="grp">
+    <button id="vDown" aria-label="Mais devagar">−</button>
+    <span class="val" id="vVal">Vel. 5</span>
+    <button id="vUp" aria-label="Mais rápido">+</button>
+  </div>
+  <button class="play" id="bPlay">▶ Rolar</button>
+  <button class="nav" id="bNext">Próximo ▶</button>
+  <div class="hint">Espaço: rolar/pausar · ↑ ↓: velocidade · ← →: hino anterior/próximo · Toque na letra pausa a rolagem</div>
+</div>
+<button class="exit-stage" id="bSairPalco">Sair do palco</button>
+
+<!-- Importar cifra -->
+<div class="ov" id="ovIm" hidden>
+  <div class="box sm" role="dialog" aria-modal="true" aria-labelledby="imTitulo">
+    <h2 id="imTitulo">Importar cifra da internet</h2>
+    <p class="sub">Copie a letra com cifra de qualquer site e cole abaixo. O app coloca cada acorde na sílaba certa e abre o editor para você revisar.</p>
+    <div class="f"><label for="imBusca">Procurar o hino</label>
+      <div class="row" style="margin-top:0"><input id="imBusca" placeholder="Nome do hino" style="flex:1;min-width:0">
+      <a class="btn" id="imLink" href="https://www.google.com/search?q=cifra" target="_blank" rel="noopener">Buscar cifra ↗</a></div></div>
+    <ol class="passos">
+      <li>No site, selecione desde o primeiro acorde até o fim da letra.</li>
+      <li id="dicaShare">Copie. No Android, também dá para tocar em <b>Compartilhar → Hinário</b>.</li>
+      <li>Volte aqui e toque em <b>Colar</b>.</li>
+    </ol>
+    <div class="f"><label for="imTxt">Cifra copiada</label>
+      <textarea class="bk-area" id="imTxt" style="min-height:220px" spellcheck="false" placeholder="G            D          Em&#10;Quando a manhã desponta clara..."></textarea></div>
+    <div class="acts">
+      <button class="btn" id="imFechar">Cancelar</button>
+      <button class="btn" id="imColar">Colar</button>
+      <button class="btn pri" id="imConv">Converter e revisar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Editor -->
+<div class="ov" id="ovEd" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="edTitulo">
+    <h2 id="edTitulo">Novo hino</h2>
+    <p class="sub">A pré-visualização ao lado atualiza enquanto você digita.</p>
+    <div class="ed">
+      <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div class="fields">
+          <div class="f"><label for="edNum">Nº</label><input id="edNum" inputmode="numeric"></div>
+          <div class="f"><label for="edTit">Título</label><input id="edTit"></div>
+          <div class="f wide"><label for="edAut">Autor / Origem</label><input id="edAut"></div>
+          <div class="f"><label for="edTom">Tom</label><input id="edTom" placeholder="G"></div>
+          <div class="f"><label for="edCat">Pasta</label><input id="edCat" list="cats" placeholder="Harpa, Corinhos, Ceia…"><datalist id="cats"></datalist></div>
+          <div class="f wide"><label for="edLetra">Letra com cifras</label><textarea id="edLetra" spellcheck="false"></textarea></div>
+        </div>
+        <div class="help">Escreva o acorde entre colchetes antes da sílaba: <code>[G]Quando a ma[D]nhã</code>.
+          Título de parte: <code>{c: Coro}</code>. Linha só de acordes (introdução): <code>[G] [D] [Em] [C]</code>. Se colar uma cifra de site aqui, ela é convertida sozinha.
+          Acordes completos funcionam: <code>[F#m7]</code>, <code>[C/E]</code>, <code>[Bb7M]</code>.</div>
+      </div>
+      <div style="min-width:0"><div class="pv"><div class="sheet" id="edPrev"></div></div></div>
+    </div>
+    <div class="acts">
+      <button class="btn dng" id="edDel" hidden>Excluir hino</button>
+      <button class="btn" id="edCancel">Cancelar</button>
+      <button class="btn pri" id="edSave">Salvar hino</button>
+    </div>
+  </div>
+</div>
+
+<!-- Conta e sincronização -->
+<div class="ov" id="ovNv" hidden>
+  <div class="box sm" role="dialog" aria-modal="true" aria-labelledby="nvTitulo">
+    <h2 id="nvTitulo">Sincronização</h2>
+    <p class="sub">Entre com a mesma conta no computador e no celular. Os hinos ficam iguais nos dois e continuam funcionando sem internet.</p>
+    <div id="nvSemCfg" hidden>
+      <div class="nv-info">A sincronização ainda não foi configurada. Preencha o arquivo <b>config.js</b> com o endereço e a chave do seu projeto no Supabase e publique de novo. O passo a passo está no LEIA-ME.</div>
+    </div>
+    <form id="nvLogin" hidden>
+      <div class="fields" style="grid-template-columns:minmax(0,1fr)">
+        <div class="f"><label for="nvEmail">E-mail</label><input id="nvEmail" type="email" autocomplete="email" inputmode="email" required></div>
+        <div class="f"><label for="nvSenha">Senha</label><input id="nvSenha" type="password" autocomplete="current-password" minlength="6" required></div>
+      </div>
+      <div class="nv-msg" id="nvMsg" role="status"></div>
+      <div class="acts">
+        <button type="button" class="btn" id="nvCriar">Criar conta</button>
+        <button type="submit" class="btn pri" id="nvEntrar">Entrar</button>
+      </div>
+      <button type="button" class="link" id="nvEsqueci">Esqueci a senha</button>
+    </form>
+    <div id="nvConta" hidden>
+      <div class="nv-info">
+        <div>Conectado como <b id="nvQuem"></b></div>
+        <div>Última sincronização: <b id="nvQuando">—</b></div>
+        <div id="nvPend"></div>
+      </div>
+      <div class="nv-msg" id="nvMsg2" role="status"></div>
+      <div class="acts">
+        <button class="btn dng" id="nvSair">Sair desta conta</button>
+        <button class="btn pri" id="nvAgora">Sincronizar agora</button>
+      </div>
+      <form class="nv-senha" id="nvTrocar">
+        <h3 id="nvTrocarTit">Trocar senha</h3>
+        <div class="row" style="margin-top:0">
+          <input id="nvNova" type="password" autocomplete="new-password" minlength="6" placeholder="Nova senha (mínimo 6 caracteres)" style="flex:1;min-width:0">
+          <button type="submit" class="btn">Salvar senha</button>
+        </div>
+        <div class="nv-msg" id="nvMsg3" role="status"></div>
+      </form>
+    </div>
+    <div class="acts"><button class="btn" id="nvFechar">Fechar</button></div>
+  </div>
+</div>
+
+<!-- Backup -->
+<div class="ov" id="ovBk" hidden>
+  <div class="box sm" role="dialog" aria-modal="true" aria-labelledby="bkTitulo">
+    <h2 id="bkTitulo">Backup do hinário</h2>
+    <p class="sub">Os hinos ficam salvos neste aparelho. Faça backup para levar a outro celular ou computador.</p>
+    <div class="bk-sec">
+      <h3>Exportar</h3>
+      <div class="row"><button class="btn pri" id="bkBaixar">Baixar arquivo .json</button><button class="btn" id="bkCopiar">Copiar texto</button><span id="bkInfo" style="font-size:.8rem;color:var(--muted)"></span></div>
+    </div>
+    <div class="bk-sec">
+      <h3>Importar</h3>
+      <div class="row"><input type="file" id="bkFile" accept=".json,application/json"></div>
+      <p class="sub" style="margin:10px 0 6px">Ou cole aqui o texto de um backup:</p>
+      <textarea class="bk-area" id="bkTxt" placeholder='{"hinos":[ ... ]}'></textarea>
+      <div class="row"><button class="btn pri" id="bkImport">Importar texto colado</button></div>
+    </div>
+    <div class="acts"><button class="btn" id="bkFechar">Fechar</button></div>
+  </div>
+</div>
+
+<script src="/config.js"></script>
+<script src="/vendor/supabase.js"></script>
+<script>
+(function(){
+"use strict";
+var KEY="hinario.v1";
+var $=function(s){return document.querySelector(s)};
+var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+var norm=function(s){return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase()};
+var uid=function(){return "h"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)};
+
+var EXEMPLOS=[
+ {num:"1",titulo:"Manhã de Graça",autor:"Hino de exemplo",tom:"G",categoria:"Louvor",vel:5,letra:
+"{c: Introdução}\n[G] [D] [Em] [C]  [G] [D] [G]\n\n{c: 1ª estrofe}\n[G]Quando a ma[D]nhã des[Em]ponta [C]clara,\n[G]canto ao Se[D]nhor que me guar[G]dou;\n[G]sua bon[D]dade não se [Em]para,\n[C]nova mi[D]sericórdia a[G]vivou.\n\n{c: Coro}\n[C]Gra[D]ça, [G]graça, [Em]rio sem [C]fim,\n[G]corre do [D]céu e alcança a [Em]mim;\n[C]glória ao [D]Pai, ao [G]Filho e [Em]Consola[C]dor,\n[G]hoje e sem[D]pre, meu [G]Senhor.\n\n{c: 2ª estrofe}\n[G]Se a tarde [D]vem com [Em]seus cansaços,\n[C]não temo, [D]pois Ele está [G]ali;\n[G]guia meus [D]pés, sustenta os [Em]passos,\n[C]e a sua [D]paz repousa em [G]mim.\n\n{c: Coro}\n[C]Gra[D]ça, [G]graça, [Em]rio sem [C]fim,\n[G]corre do [D]céu e alcança a [Em]mim;\n[C]glória ao [D]Pai, ao [G]Filho e [Em]Consola[C]dor,\n[G]hoje e sem[D]pre, meu [G]Senhor."},
+ {num:"2",titulo:"Rocha Firme",autor:"Hino de exemplo",tom:"D",categoria:"Fé",vel:5,letra:
+"{c: Introdução}\n[D] [A] [Bm] [G]  [D] [A]\n\n{c: 1ª estrofe}\n[D]Sobre a ro[A]cha eu firmo os [Bm]pés,\n[G]vento al[D]gum me abala[A]rá;\n[D]Cristo é a [A]base, a mi[Bm]nha fé\n[G]nele [A]sempre fica[D]rá.\n\n{c: Coro}\n[G]Firme, [A]firme, [F#m]rocha e[Bm]terna,\n[G]meu re[D]fúgio e [A]meu lu[D]gar;\n[G]quando a [A]noite é [F#m]mais in[Bm]tensa,\n[G]Ele [A7]vem me susten[D]tar."},
+ {num:"3",titulo:"Ao Teu Altar",autor:"Hino de exemplo",tom:"C",categoria:"Consagração",vel:4,letra:
+"{c: 1ª estrofe}\n[C]Ao teu al[F]tar eu [C]venho, ó [G]Deus,\n[Am]trago o que [F]sou, nada [G]mais;\n[C]toma meus [F]dias, [C]planos [Am]meus,\n[F]faze-me [G]teu, fiel e [C]em paz.\n\n{c: Coro}\n[F]Tudo en[G]trego, [Em]tudo é [Am]teu,\n[F]minha [C/E]vida, [Dm]meu can[G7]tar;\n[F]santo [G]fogo [Em]vem do [Am]céu,\n[Dm]queima em [G]mim no teu al[C]tar."}
+];
+
+var db={hinos:[],culto:[],cultoAt:0,cfg:{fonte:window.innerWidth<600?19:23,cifras:true,tema:"auto"},meta:null};
+function metaPadrao(){return {visto:{},pend:{},apagados:{},ultimoPull:null,ultimoSync:null}}
+/* Campos do hino que sincronizam entre aparelhos */
+var CAMPOS=["num","titulo","autor","tom","categoria","letra","vel","fav","transp"];
+function dadosDe(h){var o={};CAMPOS.forEach(function(k){if(h[k]!==undefined&&h[k]!==null)o[k]=h[k]});return o}
+function assinatura(h){return JSON.stringify(CAMPOS.map(function(k){return h[k]===undefined?null:h[k]}))}
+function load(){
+  db.meta=metaPadrao();
+  var tinha=false;
+  try{var r=localStorage.getItem(KEY);if(r){var d=JSON.parse(r);if(d&&Array.isArray(d.hinos)){tinha=true;db.hinos=d.hinos;db.culto=d.culto||[];db.cultoAt=d.cultoAt||0;if(d.cfg)Object.assign(db.cfg,d.cfg);if(d.meta)db.meta=Object.assign(metaPadrao(),d.meta);}}}catch(e){}
+  if(!tinha){
+    /* exemplos com id fixo e data antiga: nunca sobrescrevem o que já está na nuvem */
+    db.hinos=EXEMPLOS.map(function(h){return Object.assign({id:"exemplo-"+h.num,fav:false,transp:0,atualizado:1},h)});
+    db.hinos.forEach(function(h){db.meta.visto[h.id]=assinatura(h)});db.meta.visto.__culto__="[]";
+  }
+  marcarMudancas();persistir();
+}
+/* Detecta o que mudou desde a última gravação e marca para enviar à nuvem */
+function marcarMudancas(){
+  var m=db.meta,agora=Date.now(),ids={};
+  db.hinos.forEach(function(h){ids[h.id]=1;var s=assinatura(h);
+    if(m.visto[h.id]!==s){m.visto[h.id]=s;h.atualizado=agora;m.pend[h.id]=1;delete m.apagados[h.id]}});
+  Object.keys(m.visto).forEach(function(id){if(id==="__culto__")return;
+    if(!ids[id]){delete m.visto[id];m.apagados[id]=agora;m.pend[id]=1}});
+  var sc=JSON.stringify(db.culto);if(m.visto.__culto__!==sc){m.visto.__culto__=sc;db.cultoAt=agora;m.pend.__culto__=1}
+}
+function persistir(){try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){toast("Não foi possível salvar neste navegador. Faça um backup.");}}
+function save(){marcarMudancas();persistir();if(typeof agendarSync==="function")agendarSync()}
+function byId(id){for(var i=0;i<db.hinos.length;i++)if(db.hinos[i].id===id)return db.hinos[i];return null}
+
+/* ---------- Música: transposição ---------- */
+var SH=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],FL=["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
+var FLATKEYS=["F","Bb","Eb","Ab","Db","Gb","Dm","Gm","Cm","Fm","Bbm","Ebm"];
+function nIdx(n){var i=SH.indexOf(n);return i>=0?i:FL.indexOf(n)}
+function tNote(n,st,flat){var i=nIdx(n);if(i<0)return n;var j=((i+st)%12+12)%12;return (flat?FL:SH)[j]}
+var CH=/^([A-G](?:#|b)?)([^\/]*)(?:\/([A-G](?:#|b)?))?$/;
+function isChord(s){return CH.test(s.trim())}
+function tChord(c,st,flat){if(!st)return c;var m=c.trim().match(CH);if(!m)return c;return tNote(m[1],st,flat)+m[2]+(m[3]?"/"+tNote(m[3],st,flat):"")}
+function firstChord(letra){var m=String(letra).match(/\[([A-G][#b]?[^\]]*)\]/);return m?m[1]:""}
+function keyOf(h){return (h.tom||"").trim()||firstChord(h.letra)}
+function keyInfo(h,st){var k=keyOf(h);if(!k)return {nome:"—",flat:false};
+  var m=k.match(/^([A-G][#b]?)(m(?!aj))?/);if(!m)return {nome:k,flat:false};
+  var minor=!!m[2];var probe=tNote(m[1],st,false)+(minor?"m":"");var probeF=tNote(m[1],st,true)+(minor?"m":"");
+  var flat=FLATKEYS.indexOf(probeF)>=0&&FLATKEYS.indexOf(probe)<0;
+  return {nome:(flat?probeF:probe),flat:flat};}
+
+/* ---------- Renderização da cifra ---------- */
+function renderSheet(letra,st,flat){
+  var out=[],lines=String(letra||"").replace(/\r/g,"").split("\n"),blank=0;
+  lines.forEach(function(raw){
+    var t=raw.trim();
+    if(!t){if(!blank)out.push('<div class="gap"></div>');blank=1;return}
+    blank=0;
+    var dm=t.match(/^\{\s*(?:c|comment|ci|soc|sot)?\s*:?\s*(.*?)\s*\}$/i);
+    if(dm){out.push('<div class="sec">'+esc(dm[1])+'</div>');return}
+    var parts=[],re=/\[([^\]]+)\]/g,last=0,m,hasLyric=false,hasChord=false;
+    var pre=raw.slice(0,0);
+    while((m=re.exec(raw))){
+      var before=raw.slice(last,m.index);
+      if(parts.length)parts[parts.length-1].l+=before;else if(before)parts.push({c:"",l:before});
+      if(isChord(m[1])){parts.push({c:tChord(m[1],st,flat),l:""});hasChord=true}
+      else{ if(parts.length)parts[parts.length-1].l+=m[1];else parts.push({c:"",l:m[1]}) }
+      last=re.lastIndex;
+    }
+    var rest=raw.slice(last);
+    if(parts.length)parts[parts.length-1].l+=rest;else parts.push({c:"",l:rest});
+    parts.forEach(function(p){if(p.l.trim())hasLyric=true});
+    if(!hasChord&&/^\[?[^\[\]]+\]?:?$/.test(t)&&/^(coro|refr[aã]o|estrofe|verso|ponte|intro|introdu[cç][aã]o|final|solo|\d+[ªaº]?\s*estrofe)\b/i.test(norm(t).replace(/[\[\]]/g,""))){
+      out.push('<div class="sec">'+esc(t.replace(/[\[\]:]/g,""))+'</div>');return}
+    var cls="ln"+(hasLyric?"":" chordline");
+    out.push('<div class="'+cls+'">'+parts.map(function(p){
+      return '<span class="sg">'+(hasChord?'<span class="c">'+esc(p.c||"")+'</span>':'')+'<span class="l">'+(esc(p.l)||(hasChord?" ":""))+'</span></span>'}).join("")+'</div>');
+  });
+  return out.join("");
+}
+
+/* ---------- Estado ---------- */
+var tab="todos",cur=null,visible=[];
+var tabsEls=document.querySelectorAll(".tab");
+
+function sortedHinos(){return db.hinos.slice().sort(function(a,b){var x=parseFloat(a.num),y=parseFloat(b.num);
+  if(isNaN(x)&&isNaN(y))return norm(a.titulo).localeCompare(norm(b.titulo));if(isNaN(x))return 1;if(isNaN(y))return -1;return x-y||norm(a.titulo).localeCompare(norm(b.titulo))})}
+function renderList(){
+  renderPastas();
+  db.culto=db.culto.filter(function(id){return byId(id)});
+  var q=norm($("#q").value.trim()),src;
+  if(tab==="culto")src=db.culto.map(byId);else src=sortedHinos();
+  if(tab==="fav")src=src.filter(function(h){return h.fav});
+  var pasta=$("#fPasta").value;if(pasta&&tab!=="culto")src=src.filter(function(h){return (h.categoria||"")===pasta});
+  $("#fPasta").parentNode.hidden=(tab==="culto");
+  if(q){src=src.filter(function(h){
+    if(/^\d+$/.test(q))return String(h.num).indexOf(q)===0;
+    return norm(h.titulo).indexOf(q)>=0||norm(h.categoria).indexOf(q)>=0||norm(h.letra.replace(/\[[^\]]*\]|\{[^}]*\}/g,"")).indexOf(q)>=0})}
+  visible=src.map(function(h){return h.id});
+  $("#cTodos").textContent=db.hinos.length;$("#cFav").textContent=db.hinos.filter(function(h){return h.fav}).length;$("#cCulto").textContent=db.culto.length;
+  var L=$("#list");
+  if(!src.length){L.innerHTML='<li class="empty">'+(tab==="culto"?"Nenhum hino no culto de hoje.<br>Abra um hino e toque em “+ Culto”.":tab==="fav"?"Nenhum favorito ainda.":q?"Nenhum hino encontrado para essa busca.":"Nenhum hino cadastrado.")+'</li>';updNav();return}
+  L.innerHTML=src.map(function(h,i){
+    var k=keyInfo(h,h.transp||0).nome;
+    var btn='<button class="item'+(h.id===cur?' on':'')+'" data-id="'+h.id+'"><span class="n">'+esc(h.num||"·")+'</span><span class="t"><b>'+esc(h.titulo||"Sem título")+'</b><small>'+esc([h.categoria,k!=="—"?"Tom "+k:""].filter(Boolean).join(" · "))+'</small></span>'+(h.fav?'<span class="st" aria-label="Favorito">★</span>':'')+'</button>';
+    if(tab==="culto")return '<li class="li-row">'+btn+'<button class="mini" data-up="'+i+'" aria-label="Subir">↑</button><button class="mini" data-dn="'+i+'" aria-label="Descer">↓</button><button class="mini" data-rm="'+h.id+'" aria-label="Remover do culto">✕</button></li>';
+    return '<li>'+btn+'</li>'}).join("");
+  updNav();
+}
+$("#list").addEventListener("click",function(e){
+  var b=e.target.closest("button");if(!b)return;
+  if(b.dataset.id)return openHino(b.dataset.id);
+  if(b.dataset.rm){db.culto=db.culto.filter(function(x){return x!==b.dataset.rm});save();renderList();renderTools();return}
+  var i,j;
+  if(b.dataset.up!=null){i=+b.dataset.up;j=i-1}else if(b.dataset.dn!=null){i=+b.dataset.dn;j=i+1}else return;
+  if(j<0||j>=db.culto.length)return;var t=db.culto[i];db.culto[i]=db.culto[j];db.culto[j]=t;save();renderList();
+});
+tabsEls.forEach(function(t){t.addEventListener("click",function(){tab=t.dataset.tab;tabsEls.forEach(function(x){x.setAttribute("aria-selected",x===t)});renderList()})});
+$("#q").addEventListener("input",renderList);
+function renderPastas(){var sel=$("#fPasta"),v=sel.value,c={};db.hinos.forEach(function(h){if(h.categoria)c[h.categoria]=(c[h.categoria]||0)+1});
+  var ks=Object.keys(c).sort(function(a,b){return norm(a).localeCompare(norm(b))});
+  sel.innerHTML='<option value="">Todas as pastas</option>'+ks.map(function(k){return '<option value="'+esc(k)+'">'+esc(k)+' ('+c[k]+')</option>'}).join("");
+  sel.value=ks.indexOf(v)>=0?v:"";}
+$("#fPasta").addEventListener("change",renderList);
+$("#q").addEventListener("keydown",function(e){if(e.key==="Enter"&&visible.length){openHino(visible[0]);$("#q").blur()}});
+
+function openHino(id){
+  stopScroll();cur=id;var h=byId(id);if(!h)return;
+  document.body.classList.add("has-hymn");renderReader();renderList();window.scrollTo(0,0);pos=0;wake();
+  try{localStorage.setItem(KEY+".ultimo",id)}catch(e){}
+}
+function renderReader(){
+  if(typeof desarmar==="function")desarmar();
+  var h=byId(cur);
+  if(!h){$("#hNum").textContent="—";$("#hTit").textContent="Selecione um hino";$("#hMeta").innerHTML="";$("#sheet").innerHTML='<p class="empty">Escolha um hino na lista ou cadastre um novo.</p>';return}
+  var st=h.transp||0,k=keyInfo(h,st);
+  $("#hNum").textContent=h.num||"·";$("#hTit").textContent=h.titulo||"Sem título";
+  var orig=keyInfo(h,0).nome;
+  $("#hMeta").innerHTML=[h.autor?esc(h.autor):"",h.categoria?esc(h.categoria):"",orig!=="—"?"Tom original "+esc(orig):""].filter(Boolean).map(function(x){return "<span>"+x+"</span>"}).join("");
+  var sh=$("#sheet");sh.innerHTML=renderSheet(h.letra,st,k.flat);sh.classList.toggle("nochords",!db.cfg.cifras);
+  renderTools();updProg();
+}
+function renderTools(){
+  var h=byId(cur);document.documentElement.style.setProperty("--fs",db.cfg.fonte+"px");
+  $("#fVal").textContent=db.cfg.fonte;$("#bCifras").setAttribute("aria-pressed",db.cfg.cifras);
+  if(!h)return;
+  var st=h.transp||0,k=keyInfo(h,st);
+  $("#tVal").innerHTML='Tom <b>'+esc(k.nome)+'</b>'+(st?' <span style="font-weight:500;color:var(--muted)">('+(st>0?"+":"")+st+')</span>':'');
+  $("#bFav").setAttribute("aria-pressed",!!h.fav);$("#bFav").textContent=(h.fav?"★":"☆")+" Favorito";
+  var inC=db.culto.indexOf(h.id)>=0;$("#bCulto").setAttribute("aria-pressed",inC);$("#bCulto").textContent=inC?"✓ No culto":"+ Culto";
+  $("#vVal").textContent="Vel. "+(h.vel||5);
+}
+function transp(d){var h=byId(cur);if(!h)return;var v=(h.transp||0)+d;if(v>11)v-=12;if(v<-11)v+=12;h.transp=v;save();renderReader();renderList()}
+$("#tUp").onclick=function(){transp(1)};$("#tDown").onclick=function(){transp(-1)};
+$("#tVal").ondblclick=function(){var h=byId(cur);if(h){h.transp=0;save();renderReader();renderList()}};
+$("#fUp").onclick=function(){db.cfg.fonte=Math.min(48,db.cfg.fonte+1);save();renderTools()};
+$("#fDown").onclick=function(){db.cfg.fonte=Math.max(13,db.cfg.fonte-1);save();renderTools()};
+$("#bCifras").onclick=function(){db.cfg.cifras=!db.cfg.cifras;save();renderReader()};
+$("#bFav").onclick=function(){var h=byId(cur);if(!h)return;h.fav=!h.fav;save();renderTools();renderList()};
+$("#bCulto").onclick=function(){var h=byId(cur);if(!h)return;var i=db.culto.indexOf(h.id);if(i>=0){db.culto.splice(i,1);toast("Removido do culto")}else{db.culto.push(h.id);toast("Adicionado ao culto de hoje")}save();renderTools();renderList()};
+$("#bVoltar").onclick=function(){stopScroll();document.body.classList.remove("has-hymn");window.scrollTo(0,0)};
+
+/* ---------- Rolagem automática ---------- */
+var playing=false,last=0,pos=0,lastSet=-1,startT=0;
+function vel(){var h=byId(cur);return h&&h.vel?h.vel:5}
+function pxs(){var v=vel();return 4+v*v*0.55+v*3} /* curva suave: lenta em baixo, ágil em cima */
+function maxScroll(){return Math.max(0,document.documentElement.scrollHeight-window.innerHeight)}
+function tick(t){
+  if(!playing)return;
+  var dt=Math.min(.1,(t-last)/1000);last=t;
+  if(lastSet>=0&&Math.abs(window.scrollY-lastSet)>3)pos=window.scrollY;
+  var ramp=Math.min(1,(t-startT)/1200);
+  pos+=pxs()*ramp*dt;var m=maxScroll();
+  if(pos>=m){pos=m;window.scrollTo(0,pos);stopScroll();toast("Fim do hino");return}
+  window.scrollTo(0,pos);lastSet=window.scrollY;
+  requestAnimationFrame(tick);
+}
+function startScroll(){if(!cur)return;if(window.scrollY>=maxScroll()-2){window.scrollTo(0,0)}
+  playing=true;pos=window.scrollY;lastSet=-1;startT=last=performance.now();setPlayBtn();wake();requestAnimationFrame(tick)}
+function stopScroll(){playing=false;setPlayBtn()}
+function toggleScroll(){playing?stopScroll():startScroll()}
+function setPlayBtn(){var b=$("#bPlay");b.textContent=playing?"❚❚ Pausar":"▶ Rolar";b.classList.toggle("on",playing)}
+function setVel(d){var h=byId(cur);if(!h)return;h.vel=Math.max(1,Math.min(20,(h.vel||5)+d));save();renderTools()}
+$("#bPlay").onclick=toggleScroll;
+$("#vUp").onclick=function(){setVel(1)};$("#vDown").onclick=function(){setVel(-1)};
+$("#sheet").addEventListener("click",function(){if(playing)stopScroll()});
+function updProg(){var m=maxScroll();$("#prog").style.width=(m?Math.min(100,window.scrollY/m*100):0)+"%"}
+window.addEventListener("scroll",updProg,{passive:true});
+window.addEventListener("resize",updProg);
+
+function updNav(){var i=visible.indexOf(cur);$("#bPrev").disabled=i<=0;$("#bNext").disabled=i<0||i>=visible.length-1}
+function step(d){var i=visible.indexOf(cur);if(i<0)return;var j=i+d;if(j>=0&&j<visible.length)openHino(visible[j])}
+$("#bPrev").onclick=function(){step(-1)};$("#bNext").onclick=function(){step(1)};
+
+/* Tela sempre acesa enquanto lê */
+var lock=null;
+function wake(){try{if(navigator.wakeLock&&!lock&&document.visibilityState==="visible")navigator.wakeLock.request("screen").then(function(l){lock=l;l.addEventListener("release",function(){lock=null})}).catch(function(){})}catch(e){}}
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&cur)wake();else stopScroll()});
+
+/* Modo palco */
+function palco(on){document.body.classList.toggle("stage",on);
+  try{if(on&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(function(){});
+      if(!on&&document.fullscreenElement)document.exitFullscreen().catch(function(){})}catch(e){}
+  updProg()}
+$("#bPalco").onclick=function(){palco(true)};$("#bSairPalco").onclick=function(){palco(false)};
+document.addEventListener("fullscreenchange",function(){if(!document.fullscreenElement)document.body.classList.remove("stage")});
+
+/* Teclado */
+document.addEventListener("keydown",function(e){
+  if(e.target.matches("input,textarea,select")||!$("#ovEd").hidden||!$("#ovBk").hidden||!$("#ovIm").hidden||!$("#ovNv").hidden){if(e.key==="Escape"){closeEd();closeBk();closeIm();$("#ovNv").hidden=true}return}
+  if(!cur)return;
+  if(e.key===" "){e.preventDefault();toggleScroll()}
+  else if(e.key==="ArrowUp"){e.preventDefault();setVel(1)}
+  else if(e.key==="ArrowDown"){e.preventDefault();setVel(-1)}
+  else if(e.key==="ArrowRight")step(1);
+  else if(e.key==="ArrowLeft")step(-1);
+  else if(e.key==="Escape")palco(false);
+  else if(e.key==="+"||e.key==="=")$("#fUp").click();
+  else if(e.key==="-")$("#fDown").click();
+});
+
+/* ---------- Editor ---------- */
+var editId=null;
+function openEd(id,pre){
+  editId=id||null;var h=id?byId(id):(pre||null);
+  $("#edTitulo").textContent=editId?"Editar hino":(pre?"Revisar hino importado":"Novo hino");
+  var nextNum=db.hinos.reduce(function(m,x){var n=parseInt(x.num,10);return isNaN(n)?m:Math.max(m,n)},0)+1;
+  $("#edNum").value=editId?h.num:String(nextNum);$("#edTit").value=h?h.titulo:"";$("#edAut").value=h?h.autor||"":"";
+  $("#edTom").value=h?h.tom||"":"";$("#edCat").value=h?h.categoria||"":"";
+  $("#edLetra").value=h?h.letra:"{c: 1ª estrofe}\n[G]Escreva a [D]letra com os a[G]cordes\n\n{c: Coro}\n[C]Use colchetes [D]antes da [G]sílaba";
+  var cats={};db.hinos.forEach(function(x){if(x.categoria)cats[x.categoria]=1});
+  $("#cats").innerHTML=Object.keys(cats).sort().map(function(c){return '<option value="'+esc(c)+'">'}).join("");
+  var d=$("#edDel");d.hidden=!editId;d.classList.remove("arm");d.textContent="Excluir hino";
+  stopScroll();$("#ovEd").hidden=false;prevEd();setTimeout(function(){$(editId?"#edLetra":(pre?"#edNum":"#edTit")).focus()},30);
+}
+function closeEd(){$("#ovEd").hidden=true}
+function prevEd(){var tmp={tom:$("#edTom").value,letra:$("#edLetra").value};$("#edPrev").innerHTML=renderSheet(tmp.letra,0,false)||'<p class="empty">A pré-visualização aparece aqui.</p>'}
+["#edLetra","#edTom"].forEach(function(s){$(s).addEventListener("input",prevEd)});
+$("#bNovo").onclick=function(){openEd(null)};
+$("#bEditar").onclick=function(){if(cur)openEd(cur)};
+$("#edCancel").onclick=closeEd;
+$("#edSave").onclick=function(){
+  var tit=$("#edTit").value.trim();if(!tit){toast("Dê um título ao hino.");$("#edTit").focus();return}
+  var data={num:$("#edNum").value.trim(),titulo:tit,autor:$("#edAut").value.trim(),tom:$("#edTom").value.trim(),categoria:$("#edCat").value.trim(),letra:$("#edLetra").value};
+  var h;if(editId){h=byId(editId);Object.assign(h,data)}else{h=Object.assign({id:uid(),fav:false,transp:0,vel:5},data);db.hinos.push(h)}
+  save();closeEd();toast("Hino salvo");openHino(h.id);
+};
+$("#edDel").onclick=function(){
+  var d=$("#edDel");if(!d.classList.contains("arm")){d.classList.add("arm");d.textContent="Toque de novo para excluir";return}
+  closeEd();excluirHino(editId);
+};
+/* Excluir com opção de desfazer */
+function excluirHino(id){
+  var i=-1;db.hinos.forEach(function(x,k){if(x.id===id)i=k});if(i<0)return;
+  var h=db.hinos[i],ci=db.culto.indexOf(id),lista=visible.slice(),pos=lista.indexOf(id);
+  stopScroll();db.hinos.splice(i,1);if(ci>=0)db.culto.splice(ci,1);save();
+  var prox=lista[pos+1]||lista[pos-1];
+  if(cur===id){cur=null;if(prox&&byId(prox)&&window.innerWidth>860){openHino(prox)}else{document.body.classList.remove("has-hymn");renderReader()}}
+  renderList();
+  toast("“"+(h.titulo||"Hino")+"” excluído","Desfazer",function(){
+    db.hinos.splice(Math.min(i,db.hinos.length),0,h);if(ci>=0)db.culto.splice(Math.min(ci,db.culto.length),0,id);save();openHino(id);toast("Hino restaurado")},6000);
+}
+var armT=null;
+$("#bExcluir").onclick=function(){
+  var b=this;if(!cur)return;
+  if(!b.classList.contains("arm")){b.classList.add("arm");b.textContent="Confirmar exclusão";clearTimeout(armT);armT=setTimeout(desarmar,4000);return}
+  desarmar();excluirHino(cur);
+};
+function desarmar(){var b=$("#bExcluir");b.classList.remove("arm");b.textContent="Excluir"}
+$("#ovEd").addEventListener("click",function(e){if(e.target===this)closeEd()});
+
+/* Converte cifra "acordes em cima / letra embaixo" (como nos sites) para o formato do app [G]letra */
+function converterCifra(texto){
+  var res={titulo:"",tom:"",letra:""};
+  var t=String(texto||"").replace(/\r/g,"").replace(/ /g," ").replace(/\t/g,"    ");
+  var linhas=t.split("\n").map(function(l){return l.replace(/\s+$/,"")});
+  // já está no formato do app?
+  if(/\[[A-G][#b]?[^\]\s]{0,8}\][^\s\[]/.test(t)&&!linhas.some(isLinhaAcordes)){res.letra=t.trim();extraiTitulo(linhas,res);return res}
+  var SECAO=/^\s*[\[\(]?\s*(intro(du[cç][aã]o)?|refr[aã]o|coro|estribilho|ponte|pr[eé][- ]?refr[aã]o|solo|final|interl[uú]dio|(primeira|segunda|terceira|quarta|quinta|1[ªa]|2[ªa]|3[ªa]|4[ªa]|5[ªa])\s*(parte|estrofe)|parte\s*\d+|estrofe\s*\d*|verso\s*\d*|\d+[ªaº]?\s*estrofe|tag|outro)\b[^\]\)]*[\]\)]?\s*:?\s*/i;
+  var out=[],i=0;
+  while(i<linhas.length){
+    var l=linhas[i];
+    if(/^\s*(tom|tonalidade)\s*:\s*([A-G][#b]?m?)/i.test(l)){res.tom=l.match(/:\s*([A-G][#b]?m?)/i)[1];i++;continue}
+    if(/^\s*(capotraste|afina[cç][aã]o|ritmo|batida)\b/i.test(l)||isTab(l)){i++;continue}
+    var sm=l.match(SECAO);
+    if(sm&&!isLinhaAcordes(l)){
+      var rotulo=sm[0].replace(/[\[\]\(\):]/g,"").trim();
+      var resto=l.slice(sm[0].length);
+      out.push("{c: "+cap(rotulo)+"}");
+      if(resto.trim()){ if(isLinhaAcordes(resto))out.push(soAcordes(resto)); else out.push(resto.trim()) }
+      i++;continue;
+    }
+    if(isLinhaAcordes(l)){
+      var prox=linhas[i+1];
+      if(prox!=null&&prox.trim()&&!isLinhaAcordes(prox)&&!SECAO.test(prox)&&!isTab(prox)){out.push(junta(l,prox));i+=2;continue}
+      out.push(soAcordes(l));i++;continue;
+    }
+    out.push(l.trim()?l.replace(/^\s+/,""):"");i++;
+  }
+  // limpa linhas vazias repetidas
+  var limpo=[];out.forEach(function(x){var ant=limpo[limpo.length-1];if(!x.trim()&&(!limpo.length||!ant.trim()||/^\{c:/.test(ant)))return;limpo.push(x)});
+  while(limpo.length&&!limpo[limpo.length-1].trim())limpo.pop();
+  extraiTitulo(limpo,res);
+  if(res.titulo&&limpo.length&&limpo[0].trim()===res.titulo){limpo.shift();while(limpo.length&&!limpo[0].trim())limpo.shift()}
+  res.letra=limpo.join("\n");
+  if(!res.tom){var m=res.letra.match(/\[([A-G][#b]?m?)(?![a-z])/);if(m)res.tom=m[1]}
+  return res;
+}
+var ACORDE=/^\(?[A-G](?:#|b)?(?:maj|min|m|M|dim|aug|sus|add|º|°|\+|-|[0-9]|\(|\)|#|b|\/[A-G](?:#|b)?|\/[0-9]+)*\)?$/;
+var NEUTRO=/^(\||\|\||-+|\/|x?\d+x?|\(\d+x\)|\.+|%)$/i;
+function isLinhaAcordes(l){
+  if(!l||!l.trim())return false;
+  var tk=l.trim().split(/\s+/),ac=0;
+  for(var k=0;k<tk.length;k++){if(ACORDE.test(tk[k]))ac++;else if(!NEUTRO.test(tk[k]))return false}
+  if(!ac)return false;
+  // uma única letra solta ("A", "E") só conta se a linha tiver espaçamento típico de cifra
+  if(tk.length===1&&/^[AE]$/.test(tk[0])&&!/^\s{2,}/.test(l))return false;
+  return true;
+}
+function isTab(l){return /^\s*[EADGBe]\s*\|[-0-9|hpbrx\/\\~ ]{4,}/.test(l)}
+function soAcordes(l){return l.trim().split(/\s+/).map(function(c){return ACORDE.test(c)?"["+c.replace(/^\((.*)\)$/,"$1")+"]":c}).join(" ")}
+function junta(ac,ly){
+  var pos=[],re=/\S+/g,m;
+  while((m=re.exec(ac)))if(ACORDE.test(m[0]))pos.push({p:m.index,c:m[0].replace(/^\((.*)\)$/,"$1")});
+  var ind=ly.match(/^\s*/)[0].length;
+  var s=ly;
+  var maxp=pos.length?pos[pos.length-1].p:0;
+  if(s.length<maxp)s=s+" ".repeat(maxp-s.length);
+  for(var k=pos.length-1;k>=0;k--){var p=pos[k].p;s=s.slice(0,p)+"["+pos[k].c+"]"+s.slice(p)}
+  // remove indentação comum sem quebrar acordes que estavam antes da letra
+  var lead=Math.min(ind,pos.length?pos[0].p:ind);
+  return s.slice(lead).replace(/\s+$/,"");
+}
+function extraiTitulo(linhas,res){
+  for(var k=0;k<linhas.length&&k<3;k++){var l=(linhas[k]||"").trim();if(!l)continue;
+    if(l.length<=60&&!/[\[\{]/.test(l)&&!isLinhaAcordes(l)&&!/^(tom|cifra)\b/i.test(l)){res.titulo=l.replace(/\s*-\s*cifra.*$/i,"")}break}
+}
+function cap(s){s=s.replace(/\s+/g," ");return s.charAt(0).toUpperCase()+s.slice(1).toLowerCase()}
+
+/* ---------- Importar cifra ---------- */
+function openIm(txt){stopScroll();$("#imTxt").value=txt||"";$("#ovIm").hidden=false;setTimeout(function(){$(txt?"#imConv":"#imBusca").focus()},30)}
+function closeIm(){$("#ovIm").hidden=true}
+$("#bImportar").onclick=function(){openIm("")};
+$("#imFechar").onclick=closeIm;$("#ovIm").addEventListener("click",function(e){if(e.target===this)closeIm()});
+$("#imBusca").addEventListener("input",function(){$("#imLink").href="https://www.google.com/search?q="+encodeURIComponent("cifra "+this.value.trim())});
+$("#imBusca").addEventListener("keydown",function(e){if(e.key==="Enter")$("#imLink").click()});
+$("#imColar").onclick=function(){
+  try{navigator.clipboard.readText().then(function(t){if(t){$("#imTxt").value=t;toast("Cifra colada")}else toast("A área de transferência está vazia.")},function(){$("#imTxt").focus();toast("Toque e segure na caixa e escolha Colar.")})}
+  catch(e){$("#imTxt").focus();toast("Toque e segure na caixa e escolha Colar.")}
+};
+$("#imConv").onclick=function(){
+  var t=$("#imTxt").value;if(!t.trim()){toast("Cole a cifra primeiro.");return}
+  var r=converterCifra(t);if(!r.letra.trim()){toast("Não encontrei letra nesse texto.");return}
+  closeIm();openEd(null,{titulo:r.titulo||$("#imBusca").value.trim(),tom:r.tom,letra:r.letra});
+  toast("Confira a cifra e toque em Salvar hino");
+};
+$("#edLetra").addEventListener("paste",function(e){
+  var t=(e.clipboardData||window.clipboardData);t=t&&t.getData("text");if(!t)return;
+  var ls=t.replace(/\r/g,"").split("\n");if(!ls.some(isLinhaAcordes))return;
+  e.preventDefault();var r=converterCifra(t),ta=this,a=ta.selectionStart,b=ta.selectionEnd;
+  ta.value=ta.value.slice(0,a)+r.letra+ta.value.slice(b);ta.selectionStart=ta.selectionEnd=a+r.letra.length;
+  if(!$("#edTit").value.trim()&&r.titulo)$("#edTit").value=r.titulo;if(!$("#edTom").value.trim()&&r.tom)$("#edTom").value=r.tom;
+  prevEd();toast("Cifra convertida");
+});
+/* Recebe texto pelo botão Compartilhar do celular */
+(function(){try{var q=new URLSearchParams(location.search);var tx=q.get("text")||"",ti=q.get("title")||"",u=q.get("url")||"";
+  if(tx||ti){history.replaceState(null,"","/");setTimeout(function(){openIm(tx||ti);if(ti&&tx)$("#imBusca").value=ti.replace(/\s*[-|–].*$/,"")},200)}
+  else if(u&&!tx){history.replaceState(null,"","/")}}catch(e){}})();
+
+/* ---------- Backup ---------- */
+function bkJSON(){return JSON.stringify({app:"hinario",versao:1,exportado:new Date().toISOString(),hinos:db.hinos,culto:db.culto},null,1)}
+function closeBk(){$("#ovBk").hidden=true}
+$("#bBackup").onclick=function(){stopScroll();$("#bkInfo").textContent=db.hinos.length+" hinos";$("#ovBk").hidden=false};
+$("#bkFechar").onclick=closeBk;$("#ovBk").addEventListener("click",function(e){if(e.target===this)closeBk()});
+$("#bkBaixar").onclick=function(){
+  try{var blob=new Blob([bkJSON()],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="hinario-backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(a.href)},2000);toast("Backup gerado. Se não baixar, use “Copiar texto”.")}catch(e){toast("Use “Copiar texto” neste aparelho.")}
+};
+$("#bkCopiar").onclick=function(){
+  var txt=bkJSON(),ta=$("#bkTxt");
+  var fb=function(){ta.value=txt;ta.focus();ta.select();toast("Texto selecionado. Copie e guarde em local seguro.")};
+  try{navigator.clipboard.writeText(txt).then(function(){toast("Backup copiado")},fb)}catch(e){fb()}
+};
+function importar(txt){
+  var d;try{d=JSON.parse(txt)}catch(e){toast("Esse texto não é um backup válido.");return}
+  var arr=Array.isArray(d)?d:(d&&d.hinos);if(!Array.isArray(arr)){toast("Nenhum hino encontrado no backup.");return}
+  var novos=0,atual=0;
+  arr.forEach(function(x){if(!x||!x.titulo)return;var h=x.id&&byId(x.id);
+    if(h){Object.assign(h,x);atual++}else{db.hinos.push(Object.assign({id:x.id||uid(),fav:false,transp:0,vel:5,letra:""},x));novos++}});
+  if(d.culto&&Array.isArray(d.culto))d.culto.forEach(function(id){if(db.culto.indexOf(id)<0&&byId(id))db.culto.push(id)});
+  save();renderList();renderReader();closeBk();$("#bkTxt").value="";toast(novos+" hinos novos, "+atual+" atualizados");
+}
+$("#bkImport").onclick=function(){var t=$("#bkTxt").value.trim();if(!t){toast("Cole o texto do backup primeiro.");return}importar(t)};
+$("#bkFile").onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){importar(String(r.result))};r.readAsText(f);this.value=""};
+
+
+/* ---------- Sincronização (Supabase) ---------- */
+var TABELA="hinario_itens",sb=null,conta=null,sincronizando=false,deNovo=false,timerSync=null,estado="off",ultimoErro="";
+function cfgOk(){var c=window.HINARIO_CONFIG;return !!(c&&c.supabaseUrl&&c.supabaseAnonKey&&!/COLE_AQUI/.test(c.supabaseUrl+c.supabaseAnonKey)&&window.supabase&&window.supabase.createClient)}
+function nPend(){return Object.keys(db.meta.pend).length}
+function setEstado(e){estado=e;var b=$("#bNuvem");b.dataset.st=e;var n=nPend();
+  $("#nvTxt").textContent={semcfg:"Nuvem",sair:"Entrar",ok:"Sincronizado",sync:"Sincronizando…",offline:"Offline"+(n?" ("+n+")":""),erro:"Erro ao sincronizar"}[e]||"Nuvem";
+  if(!$("#ovNv").hidden)renderConta()}
+function iniciarNuvem(){
+  if(!cfgOk()){setEstado("semcfg");return}
+  sb=window.supabase.createClient(HINARIO_CONFIG.supabaseUrl,HINARIO_CONFIG.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,storageKey:"hinario.auth"}});
+  sb.auth.getSession().then(function(r){conta=r.data&&r.data.session?r.data.session.user:null;atualizaEstado();if(conta)sincronizar()});
+  sb.auth.onAuthStateChange(function(ev,ses){var antes=conta&&conta.id;conta=ses?ses.user:null;atualizaEstado();
+    if(ev==="PASSWORD_RECOVERY")setTimeout(modoNovaSenha,50);
+    if(conta&&conta.id!==antes)sincronizar()});
+}
+function atualizaEstado(){if(!sb)return setEstado("semcfg");if(!conta)return setEstado("sair");if(!navigator.onLine)return setEstado("offline");setEstado(nPend()?"offline":"ok")}
+function agendarSync(){if(!conta)return;clearTimeout(timerSync);if(!navigator.onLine){setEstado("offline");return}timerSync=setTimeout(sincronizar,1500)}
+
+async function sincronizar(){
+  if(!sb||!conta)return;
+  if(!navigator.onLine){setEstado("offline");return}
+  if(sincronizando){deNovo=true;return}
+  sincronizando=true;setEstado("sync");
+  try{await baixar();await enviar();db.meta.ultimoSync=new Date().toISOString();persistir();ultimoErro="";setEstado(nPend()?"offline":"ok")}
+  catch(e){ultimoErro=(e&&e.message)||String(e);setEstado(navigator.onLine?"erro":"offline")}
+  finally{sincronizando=false;if(deNovo){deNovo=false;agendarSync()}}
+}
+async function baixar(){
+  var m=db.meta,desde=m.ultimoPull||"1970-01-01T00:00:00Z",mudou=false,mudouAtual=false;
+  for(var volta=0;volta<200;volta++){
+    var r=await sb.from(TABELA).select("id,dados,apagado,editado_em,sincronizado_em").gt("sincronizado_em",desde).order("sincronizado_em",{ascending:true}).limit(500);
+    if(r.error)throw r.error;
+    r.data.forEach(function(row){if(aplicarRemoto(row)){mudou=true;if(row.id===cur||row.id==="__culto__")mudouAtual=true}});
+    if(r.data.length)desde=r.data[r.data.length-1].sincronizado_em;
+    if(r.data.length<500)break;
+  }
+  m.ultimoPull=desde;
+  if(mudou){persistir();if(cur&&!byId(cur)){cur=null;document.body.classList.remove("has-hymn")}
+    renderList();if(mudouAtual&&!playing)renderReader()}
+}
+function aplicarRemoto(row){
+  var m=db.meta,id=row.id,t=Date.parse(row.editado_em)||0;
+  if(id==="__culto__"){
+    if(t>(db.cultoAt||0)){db.culto=(row.dados&&Array.isArray(row.dados.lista))?row.dados.lista:[];db.cultoAt=t;m.visto.__culto__=JSON.stringify(db.culto);delete m.pend.__culto__;return true}
+    return false}
+  var h=byId(id);
+  if(row.apagado){
+    if(h){if((h.atualizado||0)<=t){db.hinos=db.hinos.filter(function(x){return x.id!==id});delete m.visto[id];delete m.pend[id];return true}return false}
+    if(m.apagados[id]&&m.apagados[id]<=t){delete m.apagados[id];delete m.pend[id]}
+    return false}
+  if(!h){
+    if(m.apagados[id]&&m.apagados[id]>t)return false;
+    var novo=Object.assign({id:id},row.dados||{},{atualizado:t});db.hinos.push(novo);
+    m.visto[id]=assinatura(novo);delete m.pend[id];delete m.apagados[id];return true}
+  if(t>(h.atualizado||0)){CAMPOS.forEach(function(k){delete h[k]});Object.assign(h,row.dados||{});h.atualizado=t;
+    m.visto[id]=assinatura(h);delete m.pend[id];return true}
+  return false
+}
+async function enviar(){
+  var m=db.meta,ids=Object.keys(m.pend);if(!ids.length)return;
+  var iso=function(n){return new Date(n||Date.now()).toISOString()},foto={};
+  var linhas=ids.map(function(id){
+    if(id==="__culto__"){foto[id]=JSON.stringify(db.culto);return {user_id:conta.id,id:id,dados:{lista:db.culto},apagado:false,editado_em:iso(db.cultoAt)}}
+    var h=byId(id);
+    if(h){foto[id]=assinatura(h);return {user_id:conta.id,id:id,dados:dadosDe(h),apagado:false,editado_em:iso(h.atualizado)}}
+    foto[id]="apagado";return {user_id:conta.id,id:id,dados:null,apagado:true,editado_em:iso(m.apagados[id])}});
+  for(var i=0;i<linhas.length;i+=200){
+    var r=await sb.from(TABELA).upsert(linhas.slice(i,i+200),{onConflict:"user_id,id"});
+    if(r.error)throw r.error;
+  }
+  /* só limpa o pendente se nada mudou durante o envio */
+  ids.forEach(function(id){
+    var agora=id==="__culto__"?JSON.stringify(db.culto):(byId(id)?assinatura(byId(id)):"apagado");
+    if(agora===foto[id]){delete m.pend[id];if(agora==="apagado")delete m.apagados[id]}});
+}
+
+/* Tela da conta */
+function renderConta(){
+  $("#nvSemCfg").hidden=!!sb;$("#nvLogin").hidden=!sb||!!conta;$("#nvConta").hidden=!conta;
+  if(conta){$("#nvQuem").textContent=conta.email||"";
+    $("#nvQuando").textContent=db.meta.ultimoSync?new Date(db.meta.ultimoSync).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"ainda não";
+    var n=nPend();$("#nvPend").textContent=n?n+" alteração(ões) aguardando internet para enviar.":"Tudo enviado para a nuvem.";
+    var m2=$("#nvMsg2");m2.className="nv-msg"+(estado==="erro"?" err":"");
+    m2.textContent=estado==="erro"?"Não foi possível sincronizar: "+traduz(ultimoErro):estado==="sync"?"Sincronizando…":!navigator.onLine?"Sem internet. Os hinos sincronizam quando a conexão voltar.":""}
+}
+function traduz(msg){msg=String(msg||"");
+  if(/Invalid login credentials/i.test(msg))return "E-mail ou senha incorretos.";
+  if(/Email not confirmed/i.test(msg))return "Confirme o seu e-mail pelo link que enviamos e depois toque em Entrar.";
+  if(/already registered|already exists/i.test(msg))return "Esse e-mail já tem conta. Toque em Entrar.";
+  if(/Password should be|at least 6/i.test(msg))return "A senha precisa ter pelo menos 6 caracteres.";
+  if(/different from the old|same as the old/i.test(msg))return "A nova senha precisa ser diferente da atual.";
+  if(/rate limit|too many/i.test(msg))return "Muitas tentativas. Aguarde um minuto e tente de novo.";
+  if(/Failed to fetch|NetworkError|network/i.test(msg))return "Sem conexão com a internet.";
+  if(/relation .* does not exist|hinario_itens/i.test(msg))return "A tabela do Supabase ainda não foi criada (veja o LEIA-ME).";
+  return msg}
+function msgLogin(t,err){var m=$("#nvMsg");m.textContent=t;m.className="nv-msg"+(err?" err":"")}
+$("#bNuvem").onclick=function(){stopScroll();msgLogin("");renderConta();$("#ovNv").hidden=false;if(sb&&!conta)setTimeout(function(){$("#nvEmail").focus()},30)};
+$("#nvFechar").onclick=function(){$("#ovNv").hidden=true};
+$("#ovNv").addEventListener("click",function(e){if(e.target===this)this.hidden=true});
+$("#nvLogin").addEventListener("submit",function(e){e.preventDefault();
+  var em=$("#nvEmail").value.trim(),se=$("#nvSenha").value;if(!em||!se){msgLogin("Preencha e-mail e senha.",true);return}
+  msgLogin("Entrando…");
+  sb.auth.signInWithPassword({email:em,password:se}).then(function(r){
+    if(r.error){msgLogin(traduz(r.error.message),true);return}
+    db.meta.ultimoPull=null;persistir();$("#nvSenha").value="";msgLogin("");toast("Conectado. Sincronizando hinos…");renderConta()})
+  .catch(function(err){msgLogin(traduz(err&&err.message),true)})});
+$("#nvCriar").onclick=function(){
+  var em=$("#nvEmail").value.trim(),se=$("#nvSenha").value;if(!em||!se){msgLogin("Digite o e-mail e crie uma senha (mínimo 6 caracteres).",true);return}
+  msgLogin("Criando conta…");
+  sb.auth.signUp({email:em,password:se}).then(function(r){
+    if(r.error){msgLogin(traduz(r.error.message),true);return}
+    if(r.data&&r.data.session){msgLogin("");toast("Conta criada. Sincronizando hinos…");renderConta()}
+    else msgLogin("Conta criada. Abra o e-mail de confirmação, toque no link e depois volte aqui e toque em Entrar.")})
+  .catch(function(err){msgLogin(traduz(err&&err.message),true)})};
+$("#nvEsqueci").onclick=function(){
+  var em=$("#nvEmail").value.trim();if(!em){msgLogin("Digite o seu e-mail acima e toque de novo em Esqueci a senha.",true);$("#nvEmail").focus();return}
+  msgLogin("Enviando…");
+  sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+"/"}).then(function(r){
+    if(r.error){msgLogin(traduz(r.error.message),true);return}
+    msgLogin("Enviamos um link para "+em+". Abra o e-mail neste aparelho, toque no link e crie a nova senha.")})
+  .catch(function(err){msgLogin(traduz(err&&err.message),true)})};
+function modoNovaSenha(){stopScroll();renderConta();$("#ovNv").hidden=false;var f=$("#nvTrocar");f.classList.add("destaque");
+  $("#nvTrocarTit").textContent="Crie a sua nova senha";$("#nvMsg3").textContent="";setTimeout(function(){$("#nvNova").focus()},50)}
+$("#nvTrocar").addEventListener("submit",function(e){e.preventDefault();
+  var se=$("#nvNova").value,m=$("#nvMsg3");if(se.length<6){m.className="nv-msg err";m.textContent="A senha precisa ter pelo menos 6 caracteres.";return}
+  m.className="nv-msg";m.textContent="Salvando…";
+  sb.auth.updateUser({password:se}).then(function(r){
+    if(r.error){m.className="nv-msg err";m.textContent=traduz(r.error.message);return}
+    $("#nvNova").value="";m.className="nv-msg";m.textContent="Senha alterada. Use a nova senha para entrar nos outros aparelhos.";
+    $("#nvTrocar").classList.remove("destaque");$("#nvTrocarTit").textContent="Trocar senha"})
+  .catch(function(err){m.className="nv-msg err";m.textContent=traduz(err&&err.message)})});
+$("#nvAgora").onclick=function(){sincronizar().then(renderConta)};
+$("#nvSair").onclick=function(){var b=this;
+  if(!b.classList.contains("arm")){b.classList.add("arm");b.textContent="Toque de novo para sair";setTimeout(function(){b.classList.remove("arm");b.textContent="Sair desta conta"},4000);return}
+  b.classList.remove("arm");b.textContent="Sair desta conta";
+  sb.auth.signOut().finally(function(){conta=null;db.meta.ultimoPull=null;persistir();atualizaEstado();renderConta();toast("Você saiu. Os hinos continuam neste aparelho.")})};
+window.addEventListener("online",function(){atualizaEstado();sincronizar()});
+window.addEventListener("offline",function(){atualizaEstado()});
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")sincronizar()});
+setInterval(function(){if(document.visibilityState==="visible")sincronizar()},60000);
+
+/* ---------- Tema e avisos ---------- */
+function aplicaTema(){var t=db.cfg.tema;if(t==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",t==="escuro"?"dark":"light");
+  $("#bTema").textContent="Tema: "+t}
+$("#bTema").onclick=function(){db.cfg.tema={auto:"claro",claro:"escuro",escuro:"auto"}[db.cfg.tema]||"auto";save();aplicaTema()};
+var tt=null;function toast(m,acao,fn,ms){var el=$(".toast");if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el)}
+  el.textContent=m;
+  if(acao){var b=document.createElement("button");b.textContent=acao;b.onclick=function(){el.hidden=true;fn()};el.appendChild(b)}
+  el.hidden=false;clearTimeout(tt);tt=setTimeout(function(){el.hidden=true},ms||2600)}
+/* No iPhone o Compartilhar não chega a apps da tela inicial */
+if(/iPhone|iPad|iPod/.test(navigator.userAgent)){var ds=$("#dicaShare");if(ds)ds.innerHTML="Toque e segure na cifra, arraste até o fim da letra e toque em <b>Copiar</b>."}
+
+/* ---------- Início ---------- */
+load();aplicaTema();renderList();iniciarNuvem();
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})}
+var ult=null;try{ult=localStorage.getItem(KEY+".ultimo")}catch(e){}
+cur=(ult&&byId(ult))?ult:(sortedHinos()[0]||{}).id||null;
+renderReader();renderList();
+if(window.innerWidth>860&&cur)document.body.classList.add("has-hymn");
+})();
+</script>
+
+</body>
+</html>
