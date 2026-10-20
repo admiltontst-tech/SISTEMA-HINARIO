@@ -145,6 +145,13 @@ button:active:not(:disabled){transform:scale(.97)}
 .vbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vbar a,.vbar button{border:0;background:transparent;color:var(--ink);font-weight:600;padding:6px 10px;border-radius:999px;text-decoration:none;font-size:.82rem}
 .vbar a:hover,.vbar button:hover{background:var(--surface-2)}
+.vops{border-top:1px solid var(--line);padding:6px 6px 8px;display:grid;gap:2px}
+.vops small{padding:4px 8px;color:var(--muted);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.vops button{border:0;background:transparent;text-align:left;padding:8px;border-radius:10px;font-size:.86rem;line-height:1.3}
+.vops button:hover{background:var(--surface-2)}
+.vops button span{display:block;color:var(--muted);font-size:.76rem}
+.vops .msg{padding:8px;color:var(--muted);font-size:.86rem;line-height:1.5}
+.vops .msg a,.vops .msg button{display:inline;padding:0;color:var(--brass);font-weight:600;text-decoration:none;font-size:inherit}
 .f .yt{display:flex;gap:8px;align-items:center}
 .f .yt input{flex:1;min-width:0}
 .f .yt a{flex:0 0 auto;font-size:.82rem;color:var(--brass);font-weight:600;text-decoration:none;white-space:nowrap}
@@ -331,7 +338,8 @@ a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center;
       </div>
       <div class="video" id="video" hidden>
         <div class="vframe" id="vFrame"></div>
-        <div class="vbar"><span>Vídeo oficial no YouTube</span><a id="vAbrir" href="#" target="_blank" rel="noopener">Abrir no YouTube ↗</a><button id="vFechar">Fechar</button></div>
+        <div class="vbar"><span id="vNome">Vídeo no YouTube</span><button id="vTrocar">Não é esse?</button><a id="vAbrir" href="#" target="_blank" rel="noopener">YouTube ↗</a><button id="vFechar">Fechar</button></div>
+        <div class="vops" id="vOps" hidden></div>
       </div>
       <div class="sheet" id="sheet"></div>
     </div>
@@ -385,10 +393,10 @@ a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center;
         <div class="fields">
           <div class="f"><label for="edNum">Nº</label><input id="edNum" inputmode="numeric"></div>
           <div class="f"><label for="edTit">Título</label><input id="edTit"></div>
-          <div class="f wide"><label for="edAut">Autor / Origem</label><input id="edAut"></div>
+          <div class="f wide"><label for="edAut">Cantor / Autor</label><input id="edAut"></div>
           <div class="f"><label for="edTom">Tom</label><input id="edTom" placeholder="G"></div>
           <div class="f"><label for="edCat">Pasta</label><input id="edCat" list="cats" placeholder="Harpa, Corinhos, Ceia…"><datalist id="cats"></datalist></div>
-          <div class="f wide"><label for="edYt">Vídeo oficial do YouTube</label><div class="yt"><input id="edYt" type="url" inputmode="url" placeholder="Cole o link do vídeo (youtube.com/watch?v=… ou youtu.be/…)"><a id="edYtBusca" href="https://www.youtube.com/results?search_query=hino" target="_blank" rel="noopener">Procurar ↗</a></div></div>
+          <div class="f wide"><label for="edYt">Vídeo oficial do YouTube</label><div class="yt"><input id="edYt" type="url" inputmode="url" placeholder="Opcional: sem link, o app procura pelo nome e o cantor"><a id="edYtBusca" href="https://www.youtube.com/results?search_query=hino" target="_blank" rel="noopener">Procurar ↗</a></div></div>
           <div class="f wide"><label for="edLetra">Letra com cifras</label><textarea id="edLetra" spellcheck="false"></textarea></div>
         </div>
         <div class="help">Escreva o acorde entre colchetes antes da sílaba: <code>[G]Quando a ma[D]nhã</code>.
@@ -492,11 +500,11 @@ var EXEMPLOS=[
 var db={hinos:[],culto:[],cultoAt:0,cfg:{fonte:window.innerWidth<600?19:23,cifras:true,tema:"claro"},meta:null};
 function metaPadrao(){return {visto:{},pend:{},apagados:{},ultimoPull:null,ultimoSync:null}}
 /* Campos do hino que sincronizam entre aparelhos */
-var CAMPOS=["num","titulo","autor","tom","categoria","letra","vel","fav","transp","youtube"];
+var CAMPOS=["num","titulo","autor","tom","categoria","letra","vel","fav","transp","youtube","youtubeNome"];
 function dadosDe(h){var o={};CAMPOS.forEach(function(k){if(h[k]!==undefined&&h[k]!==null)o[k]=h[k]});return o}
 function assinatura(h){var a=CAMPOS.map(function(k){return h[k]===undefined?null:h[k]});
   /* hino sem vídeo mantém a assinatura antiga, para a atualização não reenviar todos os hinos à nuvem */
-  if(a[a.length-1]===null||a[a.length-1]==="")a.pop();return JSON.stringify(a)}
+  while(a.length>9&&(a[a.length-1]===null||a[a.length-1]===""))a.pop();return JSON.stringify(a)}
 function load(){
   db.meta=metaPadrao();
   var tinha=false;
@@ -639,8 +647,8 @@ function renderTools(){
   var inC=db.culto.indexOf(h.id)>=0;$("#bCulto").setAttribute("aria-pressed",inC);$("#bCulto").textContent=inC?"✓ No culto":"+ Culto";
   $("#vVal").textContent="Vel. "+(h.vel||5);
   var bv=$("#bVideo");bv.setAttribute("aria-pressed",vidAberto===h.id);
-  bv.textContent=ytId(h.youtube)?(vidAberto===h.id?"■ Fechar vídeo":"▶ Vídeo"):"+ Vídeo";
-  bv.title=ytId(h.youtube)?"Tocar o vídeo oficial do YouTube":"Adicionar o link do vídeo oficial do YouTube";
+  bv.textContent=vidAberto===h.id?"■ Fechar vídeo":"▶ Vídeo";
+  bv.title="Tocar o vídeo do YouTube (procura pelo nome e o cantor)";
 }
 
 /* ---------- Vídeo oficial do YouTube ---------- */
@@ -649,12 +657,43 @@ function ytId(url){url=String(url||"").trim();if(!url)return "";
   if(/^[\w-]{11}$/.test(url))return url;
   var m=url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/))([\w-]{11})/i);
   return m?m[1]:""}
-function abreVideo(){var h=byId(cur),id=h&&ytId(h.youtube);if(!id){if(cur)openEd(cur,null,"#edYt");return}
-  vidAberto=h.id;var fr=$("#vFrame");
+/* Sem link salvo, o app procura pelo nome do hino e o cantor e guarda o vídeo escolhido */
+var vidOps={};
+function termoBusca(h){return [h.titulo,h.autor].filter(Boolean).join(" ").trim()}
+function tocaVideo(h,id,nome){var fr=$("#vFrame");vidAberto=h.id;
   if(!navigator.onLine)fr.innerHTML='<p class="empty">Sem internet: o vídeo precisa de conexão para tocar.</p>';
-  else fr.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1" title="Vídeo oficial: '+esc(h.titulo||"")+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>';
-  $("#vAbrir").href="https://www.youtube.com/watch?v="+id;$("#video").hidden=false;renderTools()}
-function fechaVideo(){vidAberto=null;$("#vFrame").innerHTML="";$("#video").hidden=true;if(byId(cur))renderTools()}
+  else fr.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1" title="Vídeo: '+esc(h.titulo||"")+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>';
+  $("#vAbrir").href="https://www.youtube.com/watch?v="+id;$("#vNome").textContent=nome||h.youtubeNome||"Vídeo no YouTube";
+  $("#vTrocar").hidden=false;$("#video").hidden=false;renderTools()}
+function msgVideo(html){var o=$("#vOps");o.innerHTML='<div class="msg">'+html+'</div>';o.hidden=false}
+function linkBusca(h){return '<a href="https://www.youtube.com/results?search_query='+encodeURIComponent(termoBusca(h)||"hino")+'" target="_blank" rel="noopener">procurar no YouTube ↗</a>'}
+async function buscaVideos(h){var t=termoBusca(h);if(vidOps[t])return vidOps[t];
+  var r=await fetch("/api/video?q="+encodeURIComponent(t)),d=await r.json().catch(function(){return {}});
+  if(!r.ok||!d.videos)throw new Error(d.erro||"falhou");vidOps[t]=d.videos;return d.videos}
+function mostraOpcoes(h,lista){var o=$("#vOps"),atual=ytId(h.youtube);
+  var outros=lista.filter(function(v){return v.id!==atual});
+  if(!outros.length){msgVideo("Não encontrei outras opções. Você pode "+linkBusca(h)+" e colar o link no editor.");return}
+  o.innerHTML='<small>Outras opções</small>'+outros.map(function(v){return '<button data-v="'+esc(v.id)+'">'+esc(v.titulo)+'<span>'+esc(v.canal)+'</span></button>'}).join("");
+  o.hidden=false;
+  o.querySelectorAll("button").forEach(function(b){b.onclick=function(){var v=lista.filter(function(x){return x.id===b.dataset.v})[0];escolheVideo(h,v);o.hidden=true;o.innerHTML=""}})}
+function escolheVideo(h,v){h.youtube="https://www.youtube.com/watch?v="+v.id;h.youtubeNome=v.titulo;save();tocaVideo(h,v.id,v.titulo)}
+async function procuraVideo(h,trocar){
+  if(!navigator.onLine){toast("Sem internet: o vídeo precisa de conexão.");return}
+  if(!termoBusca(h)){openEd(h.id,null,"#edYt");return}
+  if(!trocar){vidAberto=h.id;$("#vFrame").innerHTML='<p class="empty">Procurando “'+esc(termoBusca(h))+'” no YouTube…</p>';$("#vNome").textContent="Procurando…";$("#vTrocar").hidden=true;$("#vAbrir").href="https://www.youtube.com/results?search_query="+encodeURIComponent(termoBusca(h));$("#vOps").hidden=true;$("#video").hidden=false;renderTools()}
+  try{var lista=await buscaVideos(h);if(vidAberto!==h.id)return;
+    if(!lista.length){if(!trocar)$("#vNome").textContent="Vídeo não encontrado";$("#vFrame").innerHTML='<p class="empty">Nenhum vídeo encontrado.</p>';msgVideo("Confira o nome e o cantor no editor, ou "+linkBusca(h)+".");return}
+    if(trocar)mostraOpcoes(h,lista);else escolheVideo(h,lista[0]);
+  }catch(e){if(vidAberto!==h.id)return;
+    if(!trocar)$("#vNome").textContent="Vídeo não encontrado";
+    if(!trocar)$("#vFrame").innerHTML='<p class="empty">Não consegui procurar o vídeo agora.</p>';
+    msgVideo((e.message==="sem-chave"?"A busca automática ainda não foi ligada na Vercel. Por enquanto, você pode ":"A busca falhou. Você pode ")+linkBusca(h)+' e colar o link em <button id="vColar">Editar</button>.');
+    var c=$("#vColar");if(c)c.onclick=function(){openEd(h.id,null,"#edYt")}}}
+function abreVideo(){var h=byId(cur);if(!h)return;var id=ytId(h.youtube);
+  $("#vOps").hidden=true;$("#vOps").innerHTML="";
+  if(id)tocaVideo(h,id);else procuraVideo(h,false)}
+function fechaVideo(){vidAberto=null;$("#vFrame").innerHTML="";$("#vOps").hidden=true;$("#vOps").innerHTML="";$("#video").hidden=true;if(byId(cur))renderTools()}
+$("#vTrocar").onclick=function(){var h=byId(cur);if(h)procuraVideo(h,true)};
 $("#bVideo").onclick=function(){vidAberto&&vidAberto===cur?fechaVideo():abreVideo()};
 $("#vFechar").onclick=fechaVideo;
 function transp(d){var h=byId(cur);if(!h)return;var v=(h.transp||0)+d;if(v>11)v-=12;if(v<-11)v+=12;h.transp=v;save();renderReader();renderList()}
@@ -763,6 +802,7 @@ $("#edSave").onclick=function(){
   var tit=$("#edTit").value.trim();if(!tit){toast("Dê um título ao hino.");$("#edTit").focus();return}
   var yt=$("#edYt").value.trim();if(yt&&!ytId(yt)){toast("Esse link não parece ser de um vídeo do YouTube.");$("#edYt").focus();return}
   var data={num:$("#edNum").value.trim(),titulo:tit,autor:$("#edAut").value.trim(),tom:$("#edTom").value.trim(),categoria:$("#edCat").value.trim(),letra:$("#edLetra").value,youtube:yt||undefined};
+  if(editId&&byId(editId)&&ytId(byId(editId).youtube)!==ytId(yt))data.youtubeNome=undefined;
   var h;if(editId){h=byId(editId);Object.assign(h,data)}else{h=Object.assign({id:uid(),fav:false,transp:0,vel:5},data);db.hinos.push(h)}
   save();closeEd();toast("Hino salvo");openHino(h.id);
 };

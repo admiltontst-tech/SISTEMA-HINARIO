@@ -58,6 +58,23 @@ Se você editar o mesmo hino nos dois aparelhos, fica a versão editada por últ
 
 No Android, com o app instalado: selecione a cifra no navegador > **Compartilhar** > **Hinário**.
 
+## Vídeo do YouTube
+Abra o hino e toque em **▶ Vídeo**. Se o hino ainda não tem vídeo, o app procura no YouTube
+pelo **nome do hino e o cantor** (campo "Cantor / Autor"), toca o primeiro resultado e guarda
+a escolha. Se não for o vídeo certo, toque em **Não é esse?** e escolha outra opção.
+Também dá para colar um link no editor do hino. Nenhum áudio fica no app: o vídeo vem do YouTube.
+
+Para a busca automática funcionar, ligue uma vez a chave do YouTube (grátis):
+1. Entre em console.cloud.google.com com sua conta Google e crie um projeto (ex.: `hinario`).
+2. Menu **APIs e serviços** > **Biblioteca** > procure **YouTube Data API v3** > **Ativar**.
+3. **APIs e serviços** > **Credenciais** > **Criar credenciais** > **Chave de API**. Copie a chave.
+   Em **Restringir chave**, escolha "Restringir chave" e marque só **YouTube Data API v3**.
+4. Na Vercel: projeto **hinario-app** > **Settings** > **Environment Variables** >
+   nome `YOUTUBE_API_KEY`, valor = a chave > **Save**.
+5. Em **Deployments**, no último, menu ⋯ > **Redeploy**.
+
+A cota grátis permite cerca de 100 buscas por dia. Cada hino só busca uma vez, porque o vídeo fica salvo.
+
 ## Excluir um hino
 Abra o hino > **Excluir** > **Confirmar exclusão**. Aparece **Desfazer** por alguns segundos.
 A exclusão também vale para os outros aparelhos.

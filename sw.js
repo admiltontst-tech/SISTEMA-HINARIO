@@ -1,6 +1,6 @@
 /* Hinário — service worker: guarda o app no aparelho para funcionar sem internet.
    Ao publicar uma nova versão, aumente o número abaixo. */
-const VERSAO = "hinario-v9";
+const VERSAO = "hinario-v10";
 const ARQUIVOS = [
   "/", "/index.html", "/manifest.webmanifest",
   "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png",
@@ -25,6 +25,8 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
   const url = new URL(req.url);
+  /* busca de vídeo: sempre na rede, nunca do cache */
+  if (url.pathname.startsWith("/api/")) return;
   /* config.js: busca a versão nova primeiro, para mudanças valerem logo */
   if (url.pathname === "/config.js") {
     e.respondWith(
