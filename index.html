@@ -136,6 +136,19 @@ button:active:not(:disabled){transform:scale(.97)}
 .grp button[aria-pressed="true"]{background:var(--brass-soft);color:var(--brass);font-weight:650}
 .keyval b{color:var(--brass)}
 
+/* Vídeo oficial (player do YouTube incorporado; nada de áudio é guardado no app) */
+.video{margin-top:12px;max-width:640px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);overflow:hidden}
+.vframe{position:relative;aspect-ratio:16/9;background:#000}
+.vframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vframe .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ddd;padding:16px}
+.vbar{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;font-size:.82rem;color:var(--muted)}
+.vbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vbar a,.vbar button{border:0;background:transparent;color:var(--ink);font-weight:600;padding:6px 10px;border-radius:999px;text-decoration:none;font-size:.82rem}
+.vbar a:hover,.vbar button:hover{background:var(--surface-2)}
+.f .yt{display:flex;gap:8px;align-items:center}
+.f .yt input{flex:1;min-width:0}
+.f .yt a{flex:0 0 auto;font-size:.82rem;color:var(--brass);font-weight:600;text-decoration:none;white-space:nowrap}
+
 /* Partitura */
 .sheet{font-family:var(--f-lyric);font-size:var(--fs,22px);line-height:1.25;padding:10px 24px 24px;margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-sm)}
 .sheet .empty{font-family:var(--f-ui);font-size:.95rem}
@@ -312,8 +325,13 @@ a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center;
         </div>
         <div class="grp"><button id="bCifras" aria-pressed="true">Cifras</button></div>
         <div class="grp"><button id="bFav" aria-pressed="false">☆ Favorito</button><button id="bCulto" aria-pressed="false">+ Culto</button></div>
+        <div class="grp"><button id="bVideo" aria-pressed="false">▶ Vídeo</button></div>
         <div class="grp"><button id="bEditar">Editar</button><button id="bPalco">Modo palco</button></div>
         <div class="grp"><button id="bExcluir" class="del">Excluir</button></div>
+      </div>
+      <div class="video" id="video" hidden>
+        <div class="vframe" id="vFrame"></div>
+        <div class="vbar"><span>Vídeo oficial no YouTube</span><a id="vAbrir" href="#" target="_blank" rel="noopener">Abrir no YouTube ↗</a><button id="vFechar">Fechar</button></div>
       </div>
       <div class="sheet" id="sheet"></div>
     </div>
@@ -370,6 +388,7 @@ a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center;
           <div class="f wide"><label for="edAut">Autor / Origem</label><input id="edAut"></div>
           <div class="f"><label for="edTom">Tom</label><input id="edTom" placeholder="G"></div>
           <div class="f"><label for="edCat">Pasta</label><input id="edCat" list="cats" placeholder="Harpa, Corinhos, Ceia…"><datalist id="cats"></datalist></div>
+          <div class="f wide"><label for="edYt">Vídeo oficial do YouTube</label><div class="yt"><input id="edYt" type="url" inputmode="url" placeholder="Cole o link do vídeo (youtube.com/watch?v=… ou youtu.be/…)"><a id="edYtBusca" href="https://www.youtube.com/results?search_query=hino" target="_blank" rel="noopener">Procurar ↗</a></div></div>
           <div class="f wide"><label for="edLetra">Letra com cifras</label><textarea id="edLetra" spellcheck="false"></textarea></div>
         </div>
         <div class="help">Escreva o acorde entre colchetes antes da sílaba: <code>[G]Quando a ma[D]nhã</code>.
@@ -473,9 +492,11 @@ var EXEMPLOS=[
 var db={hinos:[],culto:[],cultoAt:0,cfg:{fonte:window.innerWidth<600?19:23,cifras:true,tema:"claro"},meta:null};
 function metaPadrao(){return {visto:{},pend:{},apagados:{},ultimoPull:null,ultimoSync:null}}
 /* Campos do hino que sincronizam entre aparelhos */
-var CAMPOS=["num","titulo","autor","tom","categoria","letra","vel","fav","transp"];
+var CAMPOS=["num","titulo","autor","tom","categoria","letra","vel","fav","transp","youtube"];
 function dadosDe(h){var o={};CAMPOS.forEach(function(k){if(h[k]!==undefined&&h[k]!==null)o[k]=h[k]});return o}
-function assinatura(h){return JSON.stringify(CAMPOS.map(function(k){return h[k]===undefined?null:h[k]}))}
+function assinatura(h){var a=CAMPOS.map(function(k){return h[k]===undefined?null:h[k]});
+  /* hino sem vídeo mantém a assinatura antiga, para a atualização não reenviar todos os hinos à nuvem */
+  if(a[a.length-1]===null||a[a.length-1]==="")a.pop();return JSON.stringify(a)}
 function load(){
   db.meta=metaPadrao();
   var tinha=false;
@@ -598,6 +619,7 @@ function openHino(id){
 }
 function renderReader(){
   if(typeof desarmar==="function")desarmar();
+  if(vidAberto&&vidAberto!==cur)fechaVideo();
   var h=byId(cur);
   if(!h){$("#hNum").textContent="—";$("#hTit").textContent="Selecione um hino";$("#hMeta").innerHTML="";$("#sheet").innerHTML='<p class="empty">Escolha um hino na lista ou cadastre um novo.</p>';return}
   var st=h.transp||0,k=keyInfo(h,st);
@@ -616,7 +638,25 @@ function renderTools(){
   $("#bFav").setAttribute("aria-pressed",!!h.fav);$("#bFav").textContent=(h.fav?"★":"☆")+" Favorito";
   var inC=db.culto.indexOf(h.id)>=0;$("#bCulto").setAttribute("aria-pressed",inC);$("#bCulto").textContent=inC?"✓ No culto":"+ Culto";
   $("#vVal").textContent="Vel. "+(h.vel||5);
+  var bv=$("#bVideo");bv.setAttribute("aria-pressed",vidAberto===h.id);
+  bv.textContent=ytId(h.youtube)?(vidAberto===h.id?"■ Fechar vídeo":"▶ Vídeo"):"+ Vídeo";
+  bv.title=ytId(h.youtube)?"Tocar o vídeo oficial do YouTube":"Adicionar o link do vídeo oficial do YouTube";
 }
+
+/* ---------- Vídeo oficial do YouTube ---------- */
+var vidAberto=null;
+function ytId(url){url=String(url||"").trim();if(!url)return "";
+  if(/^[\w-]{11}$/.test(url))return url;
+  var m=url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/))([\w-]{11})/i);
+  return m?m[1]:""}
+function abreVideo(){var h=byId(cur),id=h&&ytId(h.youtube);if(!id){if(cur)openEd(cur,null,"#edYt");return}
+  vidAberto=h.id;var fr=$("#vFrame");
+  if(!navigator.onLine)fr.innerHTML='<p class="empty">Sem internet: o vídeo precisa de conexão para tocar.</p>';
+  else fr.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1" title="Vídeo oficial: '+esc(h.titulo||"")+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>';
+  $("#vAbrir").href="https://www.youtube.com/watch?v="+id;$("#video").hidden=false;renderTools()}
+function fechaVideo(){vidAberto=null;$("#vFrame").innerHTML="";$("#video").hidden=true;if(byId(cur))renderTools()}
+$("#bVideo").onclick=function(){vidAberto&&vidAberto===cur?fechaVideo():abreVideo()};
+$("#vFechar").onclick=fechaVideo;
 function transp(d){var h=byId(cur);if(!h)return;var v=(h.transp||0)+d;if(v>11)v-=12;if(v<-11)v+=12;h.transp=v;save();renderReader();renderList()}
 $("#tUp").onclick=function(){transp(1)};$("#tDown").onclick=function(){transp(-1)};
 $("#tVal").ondblclick=function(){var h=byId(cur);if(h){h.transp=0;save();renderReader();renderList()}};
@@ -625,7 +665,7 @@ $("#fDown").onclick=function(){db.cfg.fonte=Math.max(13,db.cfg.fonte-1);save();r
 $("#bCifras").onclick=function(){db.cfg.cifras=!db.cfg.cifras;save();renderReader()};
 $("#bFav").onclick=function(){var h=byId(cur);if(!h)return;h.fav=!h.fav;save();renderTools();renderList()};
 $("#bCulto").onclick=function(){var h=byId(cur);if(!h)return;var i=db.culto.indexOf(h.id);if(i>=0){db.culto.splice(i,1);toast("Removido do culto")}else{db.culto.push(h.id);toast("Adicionado ao culto de hoje")}save();renderTools();renderList()};
-$("#bVoltar").onclick=function(){stopScroll();document.body.classList.remove("has-hymn");window.scrollTo(0,0)};
+$("#bVoltar").onclick=function(){stopScroll();if(vidAberto)fechaVideo();document.body.classList.remove("has-hymn");window.scrollTo(0,0)};
 
 /* ---------- Rolagem automática ---------- */
 var playing=false,last=0,pos=0,lastSet=-1,startT=0;
@@ -699,27 +739,30 @@ document.addEventListener("keydown",function(e){
 
 /* ---------- Editor ---------- */
 var editId=null;
-function openEd(id,pre){
+function openEd(id,pre,foco){
   editId=id||null;var h=id?byId(id):(pre||null);
   $("#edTitulo").textContent=editId?"Editar hino":(pre?"Revisar hino importado":"Novo hino");
   var nextNum=db.hinos.reduce(function(m,x){var n=parseInt(x.num,10);return isNaN(n)?m:Math.max(m,n)},0)+1;
   $("#edNum").value=editId?h.num:String(nextNum);$("#edTit").value=h?h.titulo:"";$("#edAut").value=h?h.autor||"":"";
-  $("#edTom").value=h?h.tom||"":"";$("#edCat").value=h?h.categoria||"":"";
+  $("#edTom").value=h?h.tom||"":"";$("#edCat").value=h?h.categoria||"":"";$("#edYt").value=h?h.youtube||"":"";buscaYt();
   $("#edLetra").value=h?h.letra:"{c: 1ª estrofe}\n[G]Escreva a [D]letra com os a[G]cordes\n\n{c: Coro}\n[C]Use colchetes [D]antes da [G]sílaba";
   var cats={};db.hinos.forEach(function(x){if(x.categoria)cats[x.categoria]=1});
   $("#cats").innerHTML=Object.keys(cats).sort().map(function(c){return '<option value="'+esc(c)+'">'}).join("");
   var d=$("#edDel");d.hidden=!editId;d.classList.remove("arm");d.textContent="Excluir hino";
-  stopScroll();$("#ovEd").hidden=false;prevEd();setTimeout(function(){$(editId?"#edLetra":(pre?"#edNum":"#edTit")).focus()},30);
+  stopScroll();$("#ovEd").hidden=false;prevEd();setTimeout(function(){$(foco||(editId?"#edLetra":(pre?"#edNum":"#edTit"))).focus()},30);
 }
 function closeEd(){$("#ovEd").hidden=true}
 function prevEd(){var tmp={tom:$("#edTom").value,letra:$("#edLetra").value};$("#edPrev").innerHTML=renderSheet(tmp.letra,0,false)||'<p class="empty">A pré-visualização aparece aqui.</p>'}
 ["#edLetra","#edTom"].forEach(function(s){$(s).addEventListener("input",prevEd)});
+function buscaYt(){$("#edYtBusca").href="https://www.youtube.com/results?search_query="+encodeURIComponent(($("#edTit").value.trim()||"hino")+" "+$("#edAut").value.trim()+" oficial")}
+["#edTit","#edAut"].forEach(function(s){$(s).addEventListener("input",buscaYt)});
 $("#bNovo").onclick=function(){openEd(null)};
 $("#bEditar").onclick=function(){if(cur)openEd(cur)};
 $("#edCancel").onclick=closeEd;
 $("#edSave").onclick=function(){
   var tit=$("#edTit").value.trim();if(!tit){toast("Dê um título ao hino.");$("#edTit").focus();return}
-  var data={num:$("#edNum").value.trim(),titulo:tit,autor:$("#edAut").value.trim(),tom:$("#edTom").value.trim(),categoria:$("#edCat").value.trim(),letra:$("#edLetra").value};
+  var yt=$("#edYt").value.trim();if(yt&&!ytId(yt)){toast("Esse link não parece ser de um vídeo do YouTube.");$("#edYt").focus();return}
+  var data={num:$("#edNum").value.trim(),titulo:tit,autor:$("#edAut").value.trim(),tom:$("#edTom").value.trim(),categoria:$("#edCat").value.trim(),letra:$("#edLetra").value,youtube:yt||undefined};
   var h;if(editId){h=byId(editId);Object.assign(h,data)}else{h=Object.assign({id:uid(),fav:false,transp:0,vel:5},data);db.hinos.push(h)}
   save();closeEd();toast("Hino salvo");openHino(h.id);
 };
