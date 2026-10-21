@@ -547,6 +547,7 @@ function keyInfo(h,st){var k=keyOf(h);if(!k)return {nome:"—",flat:false};
 
 /* ---------- Renderização da cifra ---------- */
 function renderSheet(letra,st,flat){
+  letra=normalizaLetra(letra);
   var out=[],lines=String(letra||"").replace(/\r/g,"").split("\n"),blank=0;
   lines.forEach(function(raw){
     var t=raw.trim();
@@ -801,7 +802,8 @@ $("#edCancel").onclick=closeEd;
 $("#edSave").onclick=function(){
   var tit=$("#edTit").value.trim();if(!tit){toast("Dê um título ao hino.");$("#edTit").focus();return}
   var yt=$("#edYt").value.trim();if(yt&&!ytId(yt)){toast("Esse link não parece ser de um vídeo do YouTube.");$("#edYt").focus();return}
-  var data={num:$("#edNum").value.trim(),titulo:tit,autor:$("#edAut").value.trim(),tom:$("#edTom").value.trim(),categoria:$("#edCat").value.trim(),letra:$("#edLetra").value,youtube:yt||undefined};
+  var data={num:$("#edNum").value.trim(),titulo:tit,autor:$("#edAut").value.trim(),tom:$("#edTom").value.trim(),categoria:$("#edCat").value.trim(),letra:normalizaLetra($("#edLetra").value),youtube:yt||undefined};
+  if(!data.tom)data.tom=keyOf({letra:data.letra});
   if(editId&&byId(editId)&&ytId(byId(editId).youtube)!==ytId(yt))data.youtubeNome=undefined;
   var h;if(editId){h=byId(editId);Object.assign(h,data)}else{h=Object.assign({id:uid(),fav:false,transp:0,vel:5},data);db.hinos.push(h)}
   save();closeEd();toast("Hino salvo");openHino(h.id);
@@ -831,19 +833,25 @@ function desarmar(){var b=$("#bExcluir");b.classList.remove("arm");b.textContent
 $("#ovEd").addEventListener("click",function(e){if(e.target===this)closeEd()});
 
 /* Converte cifra "acordes em cima / letra embaixo" (como nos sites) para o formato do app [G]letra */
-function converterCifra(texto){
+/* Letra com "acordes em cima" (colada sem converter) vira o formato do app; o resto fica igual */
+function normalizaLetra(letra){letra=String(letra||"");return letra.replace(/\r/g,"").split("\n").some(isLinhaAcordes)?converterCifra(letra,true).letra:letra}
+function converterCifra(texto,semTitulo){
   var res={titulo:"",tom:"",letra:""};
   var t=String(texto||"").replace(/\r/g,"").replace(/ /g," ").replace(/\t/g,"    ");
   var linhas=t.split("\n").map(function(l){return l.replace(/\s+$/,"")});
   // já está no formato do app?
   if(/\[[A-G][#b]?[^\]\s]{0,8}\][^\s\[]/.test(t)&&!linhas.some(isLinhaAcordes)){res.letra=t.trim();extraiTitulo(linhas,res);return res}
-  var SECAO=/^\s*[\[\(]?\s*(intro(du[cç][aã]o)?|refr[aã]o|coro|estribilho|ponte|pr[eé][- ]?refr[aã]o|solo|final|interl[uú]dio|(primeira|segunda|terceira|quarta|quinta|1[ªa]|2[ªa]|3[ªa]|4[ªa]|5[ªa])\s*(parte|estrofe)|parte\s*\d+|estrofe\s*\d*|verso\s*\d*|\d+[ªaº]?\s*estrofe|tag|outro)\b[^\]\)]*[\]\)]?\s*:?\s*/i;
+  var NOMES="(intro(du[cç][aã]o)?|refr[aã]o|coro|estribilho|ponte|pr[eé][- ]?refr[aã]o|solo|final|interl[uú]dio|(primeira|segunda|terceira|quarta|quinta|1[ªa]|2[ªa]|3[ªa]|4[ªa]|5[ªa])\\s*(parte|estrofe)|parte\\s*\\d+|estrofe\\s*\\d*|verso\\s*\\d*|\\d+[ªaº]?\\s*estrofe|tag|outro)\\b";
+  var SECAO=new RegExp("^\\s*[\\[\\(]?\\s*"+NOMES+"[^\\]\\)]*[\\]\\)]?\\s*:?\\s*","i"),SECAO_NOME=new RegExp("^\\s*[\\[\\(]?\\s*"+NOMES,"i");
   var out=[],i=0;
   while(i<linhas.length){
     var l=linhas[i];
     if(/^\s*(tom|tonalidade)\s*:\s*([A-G][#b]?m?)/i.test(l)){res.tom=l.match(/:\s*([A-G][#b]?m?)/i)[1];i++;continue}
     if(/^\s*(capotraste|afina[cç][aã]o|ritmo|batida)\b/i.test(l)||isTab(l)){i++;continue}
     var sm=l.match(SECAO);
+    // "Intro C#m B6(9) A7M": rótulo e acordes na mesma linha
+    var km=sm&&l.match(SECAO_NOME),kr=km&&l.slice(km[0].length).replace(/^\s*[:\-–]?\s*/,"");
+    if(kr&&isLinhaAcordes(kr)){out.push("{c: "+cap(km[0].replace(/[\[\(]/g,"").trim())+"}");out.push(soAcordes(kr));i++;continue}
     if(sm&&!isLinhaAcordes(l)){
       var rotulo=sm[0].replace(/[\[\]\(\):]/g,"").trim();
       var resto=l.slice(sm[0].length);
@@ -861,7 +869,7 @@ function converterCifra(texto){
   // limpa linhas vazias repetidas
   var limpo=[];out.forEach(function(x){var ant=limpo[limpo.length-1];if(!x.trim()&&(!limpo.length||!ant.trim()||/^\{c:/.test(ant)))return;limpo.push(x)});
   while(limpo.length&&!limpo[limpo.length-1].trim())limpo.pop();
-  extraiTitulo(limpo,res);
+  if(!semTitulo)extraiTitulo(limpo,res);
   if(res.titulo&&limpo.length&&limpo[0].trim()===res.titulo){limpo.shift();while(limpo.length&&!limpo[0].trim())limpo.shift()}
   res.letra=limpo.join("\n");
   if(!res.tom){var m=res.letra.match(/\[([A-G][#b]?m?)(?![a-z])/);if(m)res.tom=m[1]}
