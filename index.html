@@ -834,10 +834,20 @@ $("#ovEd").addEventListener("click",function(e){if(e.target===this)closeEd()});
 
 /* Converte cifra "acordes em cima / letra embaixo" (como nos sites) para o formato do app [G]letra */
 /* Letra com "acordes em cima" (colada sem converter) vira o formato do app; o resto fica igual */
-function normalizaLetra(letra){letra=String(letra||"");return letra.replace(/\r/g,"").split("\n").some(isLinhaAcordes)?converterCifra(letra,true).letra:letra}
+function limpaTexto(t){return String(t||"").replace(/\r/g,"").replace(/[\u200b-\u200d\u2060\ufeff\u00ad]/g,"").replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g," ").replace(/\t/g,"    ").replace(/\u266f/g,"#").replace(/\u266d/g,"b")}
+/* Linha só de acordes com alguns entre colchetes e outros não ("[Bm7]  G   D"): tira os colchetes e mantém o alinhamento */
+function soltaColchetes(l){
+  if(!/\[/.test(l))return l;
+  var tk=l.trim().split(/\s+/),solto=false,ok=tk.length>0;
+  tk.forEach(function(x){var y=x.replace(/^\[(.*)\]$/,"$1");if(!(ACORDE.test(y)||NEUTRO.test(y)))ok=false;if(y===x&&ACORDE.test(x))solto=true});
+  return ok&&solto?l.replace(/\[([^\]]+)\]/g," $1 "):l
+}
+function normalizaLetra(letra){
+  letra=limpaTexto(letra).split("\n").map(soltaColchetes).join("\n");
+  return letra.split("\n").some(isLinhaAcordes)?converterCifra(letra,true).letra:letra}
 function converterCifra(texto,semTitulo){
   var res={titulo:"",tom:"",letra:""};
-  var t=String(texto||"").replace(/\r/g,"").replace(/ /g," ").replace(/\t/g,"    ");
+  var t=limpaTexto(texto).split("\n").map(soltaColchetes).join("\n");
   var linhas=t.split("\n").map(function(l){return l.replace(/\s+$/,"")});
   // já está no formato do app?
   if(/\[[A-G][#b]?[^\]\s]{0,8}\][^\s\[]/.test(t)&&!linhas.some(isLinhaAcordes)){res.letra=t.trim();extraiTitulo(linhas,res);return res}
@@ -878,6 +888,7 @@ function converterCifra(texto,semTitulo){
 var ACORDE=/^\(?[A-G](?:#|b)?(?:maj|min|m|M|dim|aug|sus|add|º|°|\+|-|[0-9]|\(|\)|#|b|\/[A-G](?:#|b)?|\/[0-9]+)*\)?$/;
 var NEUTRO=/^(\||\|\||-+|\/|x?\d+x?|\(\d+x\)|\.+|%)$/i;
 function isLinhaAcordes(l){
+  l=limpaTexto(l);
   if(!l||!l.trim())return false;
   var tk=l.trim().split(/\s+/),ac=0;
   for(var k=0;k<tk.length;k++){if(ACORDE.test(tk[k]))ac++;else if(!NEUTRO.test(tk[k]))return false}
@@ -925,7 +936,7 @@ $("#imConv").onclick=function(){
 };
 $("#edLetra").addEventListener("paste",function(e){
   var t=(e.clipboardData||window.clipboardData);t=t&&t.getData("text");if(!t)return;
-  var ls=t.replace(/\r/g,"").split("\n");if(!ls.some(isLinhaAcordes))return;
+  var ls=limpaTexto(t).split("\n").map(soltaColchetes);if(!ls.some(isLinhaAcordes))return;
   e.preventDefault();var r=converterCifra(t),ta=this,a=ta.selectionStart,b=ta.selectionEnd;
   ta.value=ta.value.slice(0,a)+r.letra+ta.value.slice(b);ta.selectionStart=ta.selectionEnd=a+r.letra.length;
   if(!$("#edTit").value.trim()&&r.titulo)$("#edTit").value=r.titulo;if(!$("#edTom").value.trim()&&r.tom)$("#edTom").value=r.tom;
