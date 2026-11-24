@@ -726,6 +726,8 @@ function startScroll(){if(!cur)return;if(window.scrollY>=maxScroll()-2){window.s
   playing=true;pos=window.scrollY;lastSet=-1;startT=last=performance.now();setPlayBtn();wake();requestAnimationFrame(tick)}
 function stopScroll(){playing=false;setPlayBtn()}
 function toggleScroll(){playing?stopScroll():startScroll()}
+/* volta cerca de meia tela (pedal): útil para repetir um verso; a rolagem continua se estiver ligada */
+function voltaTrecho(){var y=Math.max(0,window.scrollY-Math.round(window.innerHeight*.45));window.scrollTo({top:y,behavior:playing?"auto":"smooth"});pos=y;lastSet=-1}
 function setPlayBtn(){var b=$("#bPlay");b.textContent=playing?"❚❚ Pausar":"▶ Rolar";b.classList.toggle("on",playing)}
 function setVel(d){var h=byId(cur);if(!h)return;h.vel=Math.max(1,Math.min(20,(h.vel||5)+d));save();renderTools()}
 $("#bPlay").onclick=toggleScroll;
@@ -768,6 +770,9 @@ document.addEventListener("keydown",function(e){
   if(e.target.matches("input,textarea,select")||!$("#ovEd").hidden||!$("#ovBk").hidden||!$("#ovIm").hidden||!$("#ovNv").hidden){if(e.key==="Escape"){closeEd();closeBk();closeIm();$("#ovNv").hidden=true}return}
   if(!cur)return;
   if(e.key===" "){e.preventDefault();toggleScroll()}
+  /* Pedal bluetooth: Page Down / Enter / Play = rolar ou pausar; Page Up / anterior = voltar um trecho */
+  else if(e.key==="PageDown"||(e.key==="Enter"&&!e.target.closest("button,a"))||e.key==="MediaPlayPause"||e.key==="MediaTrackNext"){e.preventDefault();toggleScroll()}
+  else if(e.key==="PageUp"||e.key==="MediaTrackPrevious"){e.preventDefault();voltaTrecho()}
   else if(e.key==="ArrowUp"){e.preventDefault();setVel(1)}
   else if(e.key==="ArrowDown"){e.preventDefault();setVel(-1)}
   else if(e.key==="ArrowRight")step(1);
