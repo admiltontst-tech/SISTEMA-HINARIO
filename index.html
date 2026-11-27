@@ -202,6 +202,22 @@ body.stage .reader{padding-top:46px}
 body.stage .inner{max-width:1100px}
 body.stage .hh,body.stage .sheet{background:transparent;border-color:transparent;box-shadow:none}
 body.stage::before{background:var(--paper)}
+/* Palco com vídeo: o vídeo fica preso no topo e só a letra rola por baixo */
+.vbar .so-palco{display:none}
+body.stage .video{position:sticky;top:env(safe-area-inset-top,0px);z-index:12;max-width:none;margin:8px 0 0;background:#000;border:0;border-radius:0 0 var(--r) var(--r);box-shadow:0 10px 26px rgba(0,0,0,.28)}
+body.stage .vframe{aspect-ratio:auto;height:var(--vh-video,min(56.25vw,34vh));width:min(100%,calc(var(--vh-video,min(56.25vw,34vh)) * 16 / 9));margin:0 auto}
+body.stage .video.grande{--vh-video:min(56.25vw,48vh)}
+body.stage .video.som .vframe{height:1px;opacity:0;overflow:hidden}
+body.stage .vbar{background:#0b0f0d;color:#cfd8d2;justify-content:center;padding:5px 10px}
+body.stage .vbar span{flex:0 1 auto;max-width:40%}
+body.stage .vbar a,body.stage .vbar button{color:#e7ede9;background:rgba(255,255,255,.08);font-size:.76rem;padding:5px 11px}
+body.stage .vbar a:hover,body.stage .vbar button:hover{background:rgba(255,255,255,.16)}
+body.stage .vbar button[aria-pressed="true"]{background:#e7ede9;color:#0b0f0d}
+body.stage .vbar .so-palco{display:inline-block}
+body.stage .video.som .vbar span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#e62117;margin-right:7px;vertical-align:middle}
+body.stage .vops{background:var(--surface)}
+body.stage .vbar a,body.stage .vbar button{white-space:nowrap}
+@media (max-width:600px){body.stage .vbar span,body.stage #vTrocar,body.stage #vAbrir{display:none}body.stage .vbar{gap:6px}}
 
 /* Janelas */
 .ov{position:fixed;inset:0;z-index:40;background:rgba(8,14,11,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;overflow:auto;
@@ -338,7 +354,7 @@ a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center;
       </div>
       <div class="video" id="video" hidden>
         <div class="vframe" id="vFrame"></div>
-        <div class="vbar"><span id="vNome">Vídeo no YouTube</span><button id="vTrocar">Não é esse?</button><a id="vAbrir" href="#" target="_blank" rel="noopener">YouTube ↗</a><button id="vFechar">Fechar</button></div>
+        <div class="vbar"><span id="vNome">Vídeo no YouTube</span><button id="vTrocar">Não é esse?</button><a id="vAbrir" href="#" target="_blank" rel="noopener">YouTube ↗</a><button id="vSom" class="so-palco" aria-pressed="false">Só o som</button><button id="vTam" class="so-palco" aria-pressed="false">Vídeo maior</button><button id="vFechar">Fechar</button></div>
         <div class="vops" id="vOps" hidden></div>
       </div>
       <div class="sheet" id="sheet"></div>
@@ -693,10 +709,12 @@ async function procuraVideo(h,trocar){
 function abreVideo(){var h=byId(cur);if(!h)return;var id=ytId(h.youtube);
   $("#vOps").hidden=true;$("#vOps").innerHTML="";
   if(id)tocaVideo(h,id);else procuraVideo(h,false)}
-function fechaVideo(){vidAberto=null;$("#vFrame").innerHTML="";$("#vOps").hidden=true;$("#vOps").innerHTML="";$("#video").hidden=true;if(byId(cur))renderTools()}
+function fechaVideo(){vidAberto=null;$("#video").classList.remove("som","grande");$("#vSom").setAttribute("aria-pressed","false");$("#vSom").textContent="Só o som";$("#vTam").setAttribute("aria-pressed","false");$("#vTam").textContent="Vídeo maior";$("#vFrame").innerHTML="";$("#vOps").hidden=true;$("#vOps").innerHTML="";$("#video").hidden=true;if(byId(cur))renderTools()}
 $("#vTrocar").onclick=function(){var h=byId(cur);if(h)procuraVideo(h,true)};
 $("#bVideo").onclick=function(){vidAberto&&vidAberto===cur?fechaVideo():abreVideo()};
 $("#vFechar").onclick=fechaVideo;
+$("#vSom").onclick=function(){var on=!$("#video").classList.contains("som");$("#video").classList.toggle("som",on);this.setAttribute("aria-pressed",on);this.textContent=on?"Mostrar vídeo":"Só o som"};
+$("#vTam").onclick=function(){var on=!$("#video").classList.contains("grande");$("#video").classList.toggle("grande",on);this.setAttribute("aria-pressed",on);this.textContent=on?"Vídeo menor":"Vídeo maior"};
 function transp(d){var h=byId(cur);if(!h)return;var v=(h.transp||0)+d;if(v>11)v-=12;if(v<-11)v+=12;h.transp=v;save();renderReader();renderList()}
 $("#tUp").onclick=function(){transp(1)};$("#tDown").onclick=function(){transp(-1)};
 $("#tVal").ondblclick=function(){var h=byId(cur);if(h){h.transp=0;save();renderReader();renderList()}};
