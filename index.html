@@ -136,6 +136,33 @@ button:active:not(:disabled){transform:scale(.97)}
 .grp button[aria-pressed="true"]{background:var(--brass-soft);color:var(--brass);font-weight:650}
 .keyval b{color:var(--brass)}
 
+/* Metrônomo: BPM do hino comanda a rolagem */
+.metro{margin-top:12px;max-width:640px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:12px 14px;display:grid;gap:10px}
+.m-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.m-bpm{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:14px;padding:4px}
+.m-bpm button{border:0;background:var(--surface-2);width:34px;height:34px;border-radius:10px;font-size:1.1rem;font-weight:600}
+.m-bpm .num{min-width:62px;text-align:center;line-height:1}
+.m-bpm .num b{display:block;font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums}
+.m-bpm .num small{font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.mdots{display:inline-flex;gap:5px;align-items:center}
+.mdot{width:12px;height:12px;border-radius:50%;background:var(--line-strong);transition:transform .08s}
+.mdot.ac{width:15px;height:15px}
+.mdot.on{background:var(--ok);transform:scale(1.15)}
+.mdot.ac.on{background:var(--brass)}
+.mchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-size:.8rem;font-weight:600;white-space:nowrap}
+.mchip[aria-pressed="true"]{background:var(--brass-soft);border-color:transparent;color:var(--brass)}
+.mchip select{border:0;background:transparent;font-weight:700;padding:0;color:var(--ink);font-size:inherit}
+.mchip.tap{background:var(--act);border-color:var(--act);color:var(--cover-ink)}
+.mchip.tap.flash{background:var(--brass);border-color:var(--brass);color:var(--brass-ink)}
+.m-opts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.m-calc{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.conta{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:40}
+.conta b{font-size:min(38vw,220px);font-weight:800;color:var(--brass);font-variant-numeric:tabular-nums;text-shadow:0 6px 30px rgba(0,0,0,.18)}
+.ln.atual{background:var(--brass-soft);border-radius:8px;box-shadow:-6px 0 0 var(--brass-soft),6px 0 0 var(--brass-soft)}
+.dock .mdots{margin:0 2px}
+body.stage .metro{display:none}
+.play{white-space:nowrap}
+@media (max-width:480px){.dock .mdots{gap:3px;margin:0}.dock .mdot{width:7px;height:7px}.dock .mdot.ac{width:9px;height:9px}}
 /* Vídeo oficial (player do YouTube incorporado; nada de áudio é guardado no app) */
 .video{margin-top:12px;max-width:640px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);overflow:hidden}
 .vframe{position:relative;aspect-ratio:16/9;background:#000}
@@ -349,8 +376,28 @@ a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center;
         <div class="grp"><button id="bCifras" aria-pressed="true">Cifras</button></div>
         <div class="grp"><button id="bFav" aria-pressed="false">☆ Favorito</button><button id="bCulto" aria-pressed="false">+ Culto</button></div>
         <div class="grp"><button id="bVideo" aria-pressed="false">▶ Vídeo</button></div>
+        <div class="grp"><button id="bMetro" aria-pressed="false" title="BPM e metrônomo para a rolagem">♩ Metrônomo</button></div>
         <div class="grp"><button id="bEditar">Editar</button><button id="bPalco">Modo palco</button></div>
         <div class="grp"><button id="bExcluir" class="del">Excluir</button></div>
+      </div>
+      <div class="metro" id="metro" hidden>
+        <div class="m-top">
+          <div class="m-bpm" title="Batidas por minuto">
+            <button id="mMenos" aria-label="Diminuir BPM">−</button>
+            <div class="num"><b id="mVal">—</b><small>BPM</small></div>
+            <button id="mMais" aria-label="Aumentar BPM">+</button>
+          </div>
+          <span class="mdots" id="mDots" aria-hidden="true"></span>
+          <button class="mchip tap" id="mTap" title="Toque junto com a batida da música">👆 Toque no ritmo</button>
+          <button class="mchip" id="mSom" aria-pressed="false">🔈 Som</button>
+        </div>
+        <div class="m-opts">
+          <label class="mchip">Compasso <select id="mComp"><option value="2">2/4</option><option value="3">3/4</option><option value="4">4/4</option><option value="6">6/8</option></select></label>
+          <label class="mchip">Linha a cada <select id="mLinha"><option value="1">1 compasso</option><option value="2">2 compassos</option><option value="3">3 compassos</option><option value="4">4 compassos</option></select></label>
+          <button class="mchip" id="mConta" aria-pressed="true">Contagem antes</button>
+          <button class="mchip" id="mUsa" aria-pressed="false">Rolar no BPM</button>
+        </div>
+        <div class="m-calc" id="mCalc">Toque no ritmo da música (3 toques ou mais) ou use + e − para definir o BPM.</div>
       </div>
       <div class="video" id="video" hidden>
         <div class="vframe" id="vFrame"></div>
@@ -362,12 +409,13 @@ a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center;
   </section>
 </main>
 
+<div class="conta" id="conta" hidden><b id="contaN">1</b></div>
 <div class="dock" id="dock">
   <div class="prog" id="prog"></div>
   <button class="nav" id="bPrev" aria-label="Hino anterior"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><span class="lbl">Anterior</span></button>
   <div class="grp">
     <button id="vDown" aria-label="Mais devagar">−</button>
-    <span class="val" id="vVal">Vel. 5</span>
+    <span class="val" id="vVal">Vel. 5</span><span class="mdots" id="dDots" aria-hidden="true" hidden></span>
     <button id="vUp" aria-label="Mais rápido">+</button>
   </div>
   <button class="play" id="bPlay">▶ Rolar</button>
@@ -411,7 +459,8 @@ a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center;
           <div class="f"><label for="edTit">Título</label><input id="edTit"></div>
           <div class="f wide"><label for="edAut">Cantor / Autor</label><input id="edAut"></div>
           <div class="f"><label for="edTom">Tom</label><input id="edTom" placeholder="G"></div>
-          <div class="f"><label for="edCat">Pasta</label><input id="edCat" list="cats" placeholder="Harpa, Corinhos, Ceia…"><datalist id="cats"></datalist></div>
+          <div class="f"><label for="edBpm">BPM</label><input id="edBpm" inputmode="numeric" placeholder="Opcional: ex. 72 (ou use Toque no ritmo)"></div>
+          <div class="f wide"><label for="edCat">Pasta</label><input id="edCat" list="cats" placeholder="Harpa, Corinhos, Ceia…"><datalist id="cats"></datalist></div>
           <div class="f wide"><label for="edYt">Vídeo oficial do YouTube</label><div class="yt"><input id="edYt" type="url" inputmode="url" placeholder="Opcional: sem link, o app procura pelo nome e o cantor"><a id="edYtBusca" href="https://www.youtube.com/results?search_query=hino" target="_blank" rel="noopener">Procurar ↗</a></div></div>
           <div class="f wide"><label for="edLetra">Letra com cifras</label><textarea id="edLetra" spellcheck="false"></textarea></div>
         </div>
@@ -516,7 +565,7 @@ var EXEMPLOS=[
 var db={hinos:[],culto:[],cultoAt:0,cfg:{fonte:window.innerWidth<600?19:23,cifras:true,tema:"claro"},meta:null};
 function metaPadrao(){return {visto:{},pend:{},apagados:{},ultimoPull:null,ultimoSync:null}}
 /* Campos do hino que sincronizam entre aparelhos */
-var CAMPOS=["num","titulo","autor","tom","categoria","letra","vel","fav","transp","youtube","youtubeNome"];
+var CAMPOS=["num","titulo","autor","tom","categoria","letra","vel","fav","transp","youtube","youtubeNome","bpm","comp","lpc","usaBpm"];
 function dadosDe(h){var o={};CAMPOS.forEach(function(k){if(h[k]!==undefined&&h[k]!==null)o[k]=h[k]});return o}
 function assinatura(h){var a=CAMPOS.map(function(k){return h[k]===undefined?null:h[k]});
   /* hino sem vídeo mantém a assinatura antiga, para a atualização não reenviar todos os hinos à nuvem */
@@ -651,7 +700,7 @@ function renderReader(){
   $("#hNum").textContent=h.num||"·";$("#hTit").textContent=h.titulo||"Sem título";
   var orig=keyInfo(h,0).nome;
   $("#hMeta").innerHTML=[h.autor?esc(h.autor):"",h.categoria?esc(h.categoria):"",orig!=="—"?"Tom original "+esc(orig):""].filter(Boolean).map(function(x){return "<span>"+x+"</span>"}).join("");
-  var sh=$("#sheet");sh.innerHTML=renderSheet(h.letra,st,k.flat);sh.classList.toggle("nochords",!db.cfg.cifras);
+  altLinha=0;var sh=$("#sheet");sh.innerHTML=renderSheet(h.letra,st,k.flat);sh.classList.toggle("nochords",!db.cfg.cifras);
   renderTools();updProg();
 }
 function renderTools(){
@@ -662,7 +711,9 @@ function renderTools(){
   $("#tVal").innerHTML='Tom <b>'+esc(k.nome)+'</b>'+(st?' <span style="font-weight:500;color:var(--muted)">('+(st>0?"+":"")+st+')</span>':'');
   $("#bFav").setAttribute("aria-pressed",!!h.fav);$("#bFav").textContent=(h.fav?"★":"☆")+" Favorito";
   var inC=db.culto.indexOf(h.id)>=0;$("#bCulto").setAttribute("aria-pressed",inC);$("#bCulto").textContent=inC?"✓ No culto":"+ Culto";
-  $("#vVal").textContent="Vel. "+(h.vel||5);
+  var mb=modoBpm();$("#vVal").textContent=mb?"♩ "+h.bpm:"Vel. "+(h.vel||5);$("#vVal").title=mb?"BPM (− e + mudam o BPM)":"Velocidade";
+  $("#dDots").hidden=!mb;$("#vDown").setAttribute("aria-label",mb?"Diminuir BPM":"Mais devagar");$("#vUp").setAttribute("aria-label",mb?"Aumentar BPM":"Mais rápido");
+  if(!$("#metro").hidden||$("#dDots").children.length!==compDe(h))renderMetro();
   var bv=$("#bVideo");bv.setAttribute("aria-pressed",vidAberto===h.id);
   bv.textContent=vidAberto===h.id?"■ Fechar vídeo":"▶ Vídeo";
   bv.title="Tocar o vídeo do YouTube (procura pelo nome e o cantor)";
@@ -728,7 +779,8 @@ $("#bVoltar").onclick=function(){stopScroll();if(vidAberto)fechaVideo();document
 /* ---------- Rolagem automática ---------- */
 var playing=false,last=0,pos=0,lastSet=-1,startT=0;
 function vel(){var h=byId(cur);return h&&h.vel?h.vel:5}
-function pxs(){var v=vel();return 4+v*v*0.55+v*3} /* curva suave: lenta em baixo, ágil em cima */
+function pxsVel(){var v=vel();return 4+v*v*0.55+v*3} /* curva suave: lenta em baixo, ágil em cima */
+function pxs(){return modoBpm()?alturaLinha()/segLinha():pxsVel()}
 function maxScroll(){return Math.max(0,document.documentElement.scrollHeight-window.innerHeight)}
 function tick(t){
   if(!playing)return;
@@ -738,16 +790,78 @@ function tick(t){
   pos+=pxs()*ramp*dt;var m=maxScroll();
   if(pos>=m){pos=m;window.scrollTo(0,pos);stopScroll();toast("Fim do hino");return}
   window.scrollTo(0,pos);lastSet=window.scrollY;
+  if(modoBpm()&&t-ultMarca>150){ultMarca=t;marcaAtual()}
   requestAnimationFrame(tick);
 }
+function comecaRolar(){playing=true;pos=window.scrollY;lastSet=-1;startT=last=performance.now();setPlayBtn();wake();requestAnimationFrame(tick);if(modoBpm())iniciaBatidas()}
 function startScroll(){if(!cur)return;if(window.scrollY>=maxScroll()-2){window.scrollTo(0,0)}
-  playing=true;pos=window.scrollY;lastSet=-1;startT=last=performance.now();setPlayBtn();wake();requestAnimationFrame(tick)}
-function stopScroll(){playing=false;setPlayBtn()}
-function toggleScroll(){playing?stopScroll():startScroll()}
+  medeLinha();if(modoBpm()&&db.cfg.metroConta!==false)contagem();else comecaRolar()}
+function stopScroll(){playing=false;contando=false;$("#conta").hidden=true;paraBatidas();limpaAtual();setPlayBtn()}
+function toggleScroll(){playing||contando?stopScroll():startScroll()}
 /* volta cerca de meia tela (pedal): útil para repetir um verso; a rolagem continua se estiver ligada */
 function voltaTrecho(){var y=Math.max(0,window.scrollY-Math.round(window.innerHeight*.45));window.scrollTo({top:y,behavior:playing?"auto":"smooth"});pos=y;lastSet=-1}
-function setPlayBtn(){var b=$("#bPlay");b.textContent=playing?"❚❚ Pausar":"▶ Rolar";b.classList.toggle("on",playing)}
-function setVel(d){var h=byId(cur);if(!h)return;h.vel=Math.max(1,Math.min(20,(h.vel||5)+d));save();renderTools()}
+function setPlayBtn(){var b=$("#bPlay");b.textContent=contando?"Contando…":playing?"❚❚ Pausar":"▶ Rolar";b.classList.toggle("on",playing||contando)}
+function setVel(d){var h=byId(cur);if(!h)return;if(modoBpm()){setBpm(h.bpm+d);return}h.vel=Math.max(1,Math.min(20,(h.vel||5)+d));save();renderTools()}
+
+/* ---------- Metrônomo e BPM ---------- */
+var contando=false,ultMarca=0,altLinha=0;
+function hAtual(){return byId(cur)}
+function modoBpm(){var h=hAtual();return !!(h&&h.bpm&&h.usaBpm!==false)}
+function compDe(h){return h&&h.comp||4}
+function lpcDe(h){return h&&h.lpc||2}
+function segLinha(){var h=hAtual();return compDe(h)*lpcDe(h)*60/h.bpm}
+function medeLinha(){var ls=[].slice.call(document.querySelectorAll("#sheet .ln:not(.chordline)")),s=0;
+  ls.forEach(function(l){s+=l.offsetHeight+parseFloat(getComputedStyle(l).marginBottom||0)});altLinha=ls.length?s/ls.length:60}
+function alturaLinha(){if(!altLinha)medeLinha();return altLinha}
+function setBpm(v){var h=hAtual();if(!h)return;h.bpm=Math.max(30,Math.min(240,Math.round(v||72)));if(h.usaBpm===undefined)h.usaBpm=true;save();renderMetro();renderTools()}
+function pontos(el){var n=compDe(hAtual()),x="";for(var i=0;i<n;i++)x+='<span class="mdot'+(i===0?' ac':'')+'"></span>';el.innerHTML=x}
+function renderMetro(){var h=hAtual();if(!h)return;
+  $("#mVal").textContent=h.bpm||"—";$("#mComp").value=String(compDe(h));$("#mLinha").value=String(lpcDe(h));
+  $("#mSom").setAttribute("aria-pressed",!!db.cfg.metroSom);$("#mSom").textContent=db.cfg.metroSom?"🔊 Som":"🔈 Som";
+  $("#mConta").setAttribute("aria-pressed",db.cfg.metroConta!==false);
+  $("#mUsa").setAttribute("aria-pressed",modoBpm());$("#mUsa").disabled=!h.bpm;
+  $("#mCalc").textContent=h.bpm?(modoBpm()?"A letra anda 1 linha a cada "+segLinha().toFixed(1).replace(".",",")+" s.":"Rolagem pela velocidade normal. Ligue “Rolar no BPM” para usar o BPM."):"Toque no ritmo da música (3 toques ou mais) ou use + e − para definir o BPM.";
+  pontos($("#mDots"));pontos($("#dDots"));
+  $("#bMetro").setAttribute("aria-pressed",!$("#metro").hidden)}
+$("#bMetro").onclick=function(){var m=$("#metro");m.hidden=!m.hidden;audio();renderMetro()};
+$("#mMais").onclick=function(){var h=hAtual();if(h)setBpm((h.bpm||71)+1)};
+$("#mMenos").onclick=function(){var h=hAtual();if(h)setBpm((h.bpm||73)-1)};
+$("#mComp").onchange=function(){var h=hAtual();if(!h)return;h.comp=+this.value;save();renderMetro()};
+$("#mLinha").onchange=function(){var h=hAtual();if(!h)return;h.lpc=+this.value;save();renderMetro()};
+$("#mSom").onclick=function(){db.cfg.metroSom=!db.cfg.metroSom;save();audio();renderMetro()};
+$("#mConta").onclick=function(){db.cfg.metroConta=db.cfg.metroConta===false;save();renderMetro()};
+$("#mUsa").onclick=function(){var h=hAtual();if(!h||!h.bpm)return;h.usaBpm=!modoBpm();save();renderMetro();renderTools()};
+/* Toque no ritmo: média dos últimos toques; depois de 2 s parado começa uma medição nova */
+var taps=[];
+$("#mTap").onclick=function(){var t=performance.now();if(taps.length&&t-taps[taps.length-1]>2000)taps=[];taps.push(t);if(taps.length>8)taps.shift();
+  var b=this;b.classList.add("flash");setTimeout(function(){b.classList.remove("flash")},90);audio();if(db.cfg.metroSom)clique(true);
+  if(taps.length>=3)setBpm(60000/((taps[taps.length-1]-taps[0])/(taps.length-1)))};
+/* som do clique */
+var ac=null;
+function audio(){try{if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume()}catch(e){}}
+function clique(forte){if(!ac)return;try{var o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;
+  o.frequency.value=forte?1600:1050;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(forte?.5:.3,t+.002);g.gain.exponentialRampToValueAtTime(.0001,t+.06);
+  o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.07)}catch(e){}}
+/* batidas: pisca os pontos e toca o clique */
+var batT=null,batN=0;
+function bate(){var n=compDe(hAtual()),i=batN%n;batN++;
+  [$("#mDots"),$("#dDots")].forEach(function(el){var d=el.children;for(var k=0;k<d.length;k++)d[k].classList.toggle("on",k===i)});
+  setTimeout(function(){[$("#mDots"),$("#dDots")].forEach(function(el){if(el.children[i])el.children[i].classList.remove("on")})},Math.min(140,30000/(hAtual().bpm||72)));
+  if(db.cfg.metroSom)clique(i===0)}
+function iniciaBatidas(){paraBatidas();var prox=performance.now();(function loop(){if(!playing&&!contando)return;var h=hAtual();if(!h||!h.bpm)return;bate();prox+=60000/h.bpm;batT=setTimeout(loop,Math.max(0,prox-performance.now()))})()}
+function paraBatidas(){clearTimeout(batT);batT=null}
+function contagem(){audio();contando=true;batN=0;setPlayBtn();var h=hAtual(),n=0,ms=60000/h.bpm,ini=performance.now(),total=compDe(h);$("#conta").hidden=false;
+  (function passo(){if(!contando)return;n++;if(n>total){$("#conta").hidden=true;contando=false;batN=0;comecaRolar();return}
+    $("#contaN").textContent=n;bate();setTimeout(passo,Math.max(0,ini+n*ms-performance.now()))})()}
+/* linha atual: a que está na altura da guia (um pouco abaixo do topo visível) */
+function marcaAtual(){var topo=0,v=$("#video");
+  if(document.body.classList.contains("stage")&&!v.hidden)topo=Math.max(0,v.getBoundingClientRect().bottom);
+  else{var tp=document.querySelector(".top");if(tp&&getComputedStyle(tp).position==="sticky")topo=Math.max(0,tp.getBoundingClientRect().bottom)}
+  var g=topo+window.innerHeight*.16,ls=document.querySelectorAll("#sheet .ln"),achou=null;
+  for(var i=0;i<ls.length;i++){var r=ls[i].getBoundingClientRect();if(r.bottom>=g){achou=ls[i];break}}
+  for(var k=0;k<ls.length;k++)ls[k].classList.toggle("atual",ls[k]===achou)}
+function limpaAtual(){document.querySelectorAll("#sheet .ln.atual").forEach(function(l){l.classList.remove("atual")})}
+window.addEventListener("resize",function(){altLinha=0});
 $("#bPlay").onclick=toggleScroll;
 $("#vUp").onclick=function(){setVel(1)};$("#vDown").onclick=function(){setVel(-1)};
 $("#sheet").addEventListener("click",function(){if(playing&&!document.body.classList.contains("stage"))stopScroll()});
@@ -807,7 +921,7 @@ function openEd(id,pre,foco){
   $("#edTitulo").textContent=editId?"Editar hino":(pre?"Revisar hino importado":"Novo hino");
   var nextNum=db.hinos.reduce(function(m,x){var n=parseInt(x.num,10);return isNaN(n)?m:Math.max(m,n)},0)+1;
   $("#edNum").value=editId?h.num:String(nextNum);$("#edTit").value=h?h.titulo:"";$("#edAut").value=h?h.autor||"":"";
-  $("#edTom").value=h?h.tom||"":"";$("#edCat").value=h?h.categoria||"":"";$("#edYt").value=h?h.youtube||"":"";buscaYt();
+  $("#edTom").value=h?h.tom||"":"";$("#edCat").value=h?h.categoria||"":"";$("#edYt").value=h?h.youtube||"":"";$("#edBpm").value=h&&h.bpm?h.bpm:"";buscaYt();
   $("#edLetra").value=h?h.letra:"{c: 1ª estrofe}\n[G]Escreva a [D]letra com os a[G]cordes\n\n{c: Coro}\n[C]Use colchetes [D]antes da [G]sílaba";
   var cats={};db.hinos.forEach(function(x){if(x.categoria)cats[x.categoria]=1});
   $("#cats").innerHTML=Object.keys(cats).sort().map(function(c){return '<option value="'+esc(c)+'">'}).join("");
@@ -826,6 +940,7 @@ $("#edSave").onclick=function(){
   var tit=$("#edTit").value.trim();if(!tit){toast("Dê um título ao hino.");$("#edTit").focus();return}
   var yt=$("#edYt").value.trim();if(yt&&!ytId(yt)){toast("Esse link não parece ser de um vídeo do YouTube.");$("#edYt").focus();return}
   var data={num:$("#edNum").value.trim(),titulo:tit,autor:$("#edAut").value.trim(),tom:$("#edTom").value.trim(),categoria:$("#edCat").value.trim(),letra:normalizaLetra($("#edLetra").value),youtube:yt||undefined};
+  var bp=parseInt($("#edBpm").value,10);if(bp>=30&&bp<=240){data.bpm=bp;if(!editId||!byId(editId)||!byId(editId).bpm)data.usaBpm=true}else{data.bpm=undefined;data.usaBpm=undefined}
   if(!data.tom)data.tom=keyOf({letra:data.letra});
   if(editId&&byId(editId)&&ytId(byId(editId).youtube)!==ytId(yt))data.youtubeNome=undefined;
   var h;if(editId){h=byId(editId);Object.assign(h,data)}else{h=Object.assign({id:uid(),fav:false,transp:0,vel:5},data);db.hinos.push(h)}
